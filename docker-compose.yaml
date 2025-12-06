@@ -1,0 +1,142 @@
+# Root Docker Compose - Manages both Production and Beta stacks
+# 
+# Usage:
+#   docker compose up -d                      # Start both stacks
+#   docker compose up -d --profile prod       # Start only production
+#   docker compose up -d --profile beta       # Start only beta
+#   docker compose down                       # Stop both stacks
+#   docker compose ps                         # View all containers
+
+services:
+  # Production Stack Services
+  open-webui2:
+    image: ghcr.io/open-webui/open-webui:Latest
+    container_name: open-webui2
+    gpus: all
+    profiles:
+      - prod
+      - all
+    volumes:
+      - ollama:/root/.ollama
+      - open-webui:/app/backend/data
+    restart: always
+    networks:
+      - internal-prod
+
+  tailscale-sidecar:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-sidecar
+    hostname: jarvis
+    privileged: true
+    profiles:
+      - prod
+      - all
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY}
+      TS_HOSTNAME: jarvis
+      TS_ACCEPT_DNS: true
+    volumes:
+      - tailscale-sidecar-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: always
+    network_mode: host
+    env_file:
+      - production/.env
+
+  nginx-prod:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: always
+    profiles:
+      - prod
+      - all
+    volumes:
+      - ./production/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - open-webui2
+    networks:
+      - internal-prod
+    ports:
+      - "127.0.0.1:8080:80"
+
+  # Beta Stack Services
+  open-webui-beta:
+    image: ghcr.io/open-webui/open-webui:Latest
+    container_name: open-webui-beta
+    gpus: all
+    profiles:
+      - beta
+      - all
+    volumes:
+      - ollama-beta:/root/.ollama
+      - open-webui-beta:/app/backend/data
+      - ./beta/assets/favicon-beta.svg:/app/backend/static/favicon.png:ro
+      - ./beta/assets/logo-beta.svg:/app/backend/static/logo.svg:ro
+    restart: always
+    networks:
+      - internal-beta
+
+  tailscale-sidecar-beta:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-sidecar-beta
+    hostname: jarvis-beta
+    network_mode: host
+    privileged: true
+    profiles:
+      - beta
+      - all
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_BETA}
+      TS_HOSTNAME: jarvis-beta
+      TS_ACCEPT_DNS: true
+    volumes:
+      - tailscale-sidecar-beta-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: always
+    env_file:
+      - beta/.env
+
+  nginx-beta:
+    image: nginx:alpine
+    container_name: nginx-beta
+    restart: always
+    profiles:
+      - beta
+      - all
+    volumes:
+      - ./beta/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - open-webui-beta
+    networks:
+      - internal-beta
+    ports:
+      - "127.0.0.1:8081:80"
+
+networks:
+  internal-prod:
+    driver: bridge
+  internal-beta:
+    driver: bridge
+
+volumes:
+  # Production volumes
+  ollama:
+    driver: local
+  open-webui:
+    driver: local
+  tailscale-sidecar-state:
+    driver: local
+
+  # Beta volumes
+  ollama-beta:
+    driver: local
+  open-webui-beta:
+    driver: local
+  tailscale-sidecar-beta-state:
+    driver: local

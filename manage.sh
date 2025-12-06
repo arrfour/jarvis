@@ -165,6 +165,9 @@ Restart Commands:
   restart-prod              Restart only production stack
   restart-beta              Restart only beta stack
 
+Tailscale Serve:
+  serve-config              Configure Tailscale Serve for HTTPS access
+  
 View Commands:
   status, ps                Show status of all containers
   logs                      Show logs from all stacks (Ctrl+C to exit)
@@ -185,6 +188,17 @@ Examples:
   ./manage.sh nuke-beta       # Delete all beta data (asks for confirmation)
 
 EOF
+    ;;
+
+  serve-config)
+    echo "🔧 Configuring Tailscale Serve for both stacks..."
+    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null || echo "Production Serve config may already be set"
+    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null || echo "Beta Serve config may already be set"
+    echo "✅ Tailscale Serve configured!"
+    echo ""
+    echo "Available URLs (tailnet only):"
+    echo "  Production: https://jarvis.tailcd013.ts.net"
+    echo "  Beta: https://jarvis-beta.tailcd013.ts.net"
     ;;
 
   *)

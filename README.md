@@ -1,14 +1,15 @@
 # Jarvis - Open WebUI on Tailscale
 
-A containerized Open WebUI instance with Ollama support, accessible securely via Tailscale with SSL/TLS encryption.
+A containerized Open WebUI instance with Ollama support, accessible securely via Tailscale with **automatically-issued valid HTTPS certificates** (no self-signed certificate warnings).
 
 ## ✨ Features
 
 - 🤖 **Open WebUI** - Web interface for LLM interactions with Ollama backend
 - 🔐 **Tailscale Network** - Secure, encrypted private network access (no port forwarding needed)
-- 🔒 **SSL/TLS** - Self-signed certificates for HTTPS (valid 365 days)
+- ✅ **Valid HTTPS Certificates** - Automatic Tailscale certificates on your Tailnet (zero warnings)
 - 🔄 **Reverse Proxy** - Nginx for routing and future service expansion
 - 📦 **Containerized** - Docker Compose for reproducible deployment
+- 🎯 **Tailnet-Only** - Designed for secure access only via Tailscale
 
 ## 🚀 Quick Start
 
@@ -54,21 +55,27 @@ A containerized Open WebUI instance with Ollama support, accessible securely via
    https://jarvis.tailcd013.ts.net
    ```
    (Replace `tailcd013` with your Tailnet domain)
-
 ## 📐 Architecture
 
 ```
 Your Device on Tailnet
        ↓
-Tailscale Serve (HTTPS default port 443)
+Tailscale Serve (provides HTTPS with valid certificates)
        ↓
 Tailscale Sidecar Container (host network)
        ↓
-Nginx Reverse Proxy (127.0.0.1:8080)
+Nginx Reverse Proxy (127.0.0.1:8080 HTTP)
        ↓
 Open WebUI Container (internal Docker network)
        ↓
 Ollama (local LLM backend)
+```
+
+**Key Points:**
+- ✅ **No certificate warnings** - Tailscale issues valid certs automatically
+- 🔒 **Encrypted end-to-end** - HTTPS from browser to Tailscale Serve
+- 🚀 **Simple setup** - Tailscale handles all HTTPS complexity
+- 🎯 **Tailnet-only** - No exposure to the public internetama (local LLM backend)
 ```
 
 ## 📁 Project Structure
@@ -86,13 +93,15 @@ jarvis/
 
 ## 🔌 Access Points
 
-| URL | Purpose | Notes |
-|-----|---------|-------|
-| `https://jarvis.tailcd013.ts.net` | Primary access via Tailscale | No port needed, secure FQDN |
-| `https://100.x.x.x:8443` | Direct IP access | Use if FQDN fails |
-| `https://127.0.0.1:8443` | Local access (host machine) | For debugging |
+| URL | Purpose | Certificate |
+|-----|---------|-------------|
+| `https://jarvis.tailcd013.ts.net` | Primary access via Tailscale | ✅ Valid (auto-issued) |
+| `https://100.x.x.x:8443` | Direct IP (not recommended) | ⚠️ Self-signed |
+| `https://127.0.0.1:8443` | Local access (host machine) | ⚠️ Self-signed |
 
-Replace `tailcd013` with your actual Tailnet domain and `100.x.x.x` with your device's Tailscale IP.
+**Recommended:** Always use the Tailnet FQDN (`jarvis.tailcd013.ts.net`) for valid certificates and zero warnings.
+
+Replace `tailcd013` with your actual Tailnet domain.
 
 ## 🛠️ Configuration
 
@@ -104,12 +113,11 @@ TS_AUTHKEY=tskey-api-YOUR_KEY_HERE
 
 Generate at: https://login.tailscale.com/admin/settings/keys
 
-### SSL Certificates
+### Certificates
 
-Self-signed certificates are automatically generated on first run and stored in `certs/`:
-- Valid for 365 days
-- Not tracked in git (for security)
-- Regenerate if needed (see Maintenance section)
+**No manual certificate management needed!**
+
+Tailscale automatically issues and renews valid HTTPS certificates for your device on your Tailnet. Certificates are managed entirely by Tailscale and require zero configuration.
 
 ## 📦 Services
 
@@ -122,11 +130,11 @@ Self-signed certificates are automatically generated on first run and stored in 
   - `open-webui` - Application data
 
 ### Nginx Reverse Proxy
+### Nginx Reverse Proxy
 - **Image**: `nginx:alpine`
-- **Ports**: 127.0.0.1:8080 (HTTP), 127.0.0.1:8443 (HTTPS)
+- **Ports**: 127.0.0.1:8080 (HTTP only)
 - **Config**: `./nginx.conf`
-- **SSL**: Self-signed certs from `./certs/`
-
+- **SSL**: Handled by Tailscale Serve (no local certificates)
 ### Tailscale Sidecar
 - **Image**: `tailscale/tailscale:latest`
 - **Hostname**: `jarvis`
@@ -150,13 +158,15 @@ docker compose restart               # Restart all
 ```
 
 ### Regenerate SSL Certificates
+
+**Not needed anymore!** Tailscale handles all certificate issuance and renewal automatically. Your Tailnet domain certificates are managed by Tailscale and updated without any manual intervention.
+
+If you absolutely need to reset Tailscale:
 ```bash
-rm -rf certs/
-mkdir -p certs
-openssl req -x509 -newkey rsa:4096 -nodes \
-  -out certs/server.crt -keyout certs/server.key \
-  -days 365 -subj "/CN=jarvis"
-docker compose restart nginx
+docker compose exec tailscale-sidecar tailscale logout
+docker compose restart tailscale-sidecar
+# Then approve device again in Tailscale Admin
+docker compose exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
 ```
 
 ### Update Images
@@ -195,10 +205,9 @@ docker compose down -v
 ### 502 Bad Gateway
 - Check Open WebUI is healthy: `docker compose ps`
 - View Nginx logs: `docker compose logs nginx`
-- Verify internal network: `docker compose exec nginx ping open-webui2`
-
 ### SSL Certificate Warnings
-- Normal for self-signed certs on first access
+
+**There should be none!** Tailscale provides valid HTTPS certificates automatically on your Tailnet domain. Access `https://jarvis.tailcd013.ts.net` and your browser should trust the certificate immediately.
 - Click "Advanced" → "Proceed" in your browser
 - To avoid warnings, use a valid certificate from Let's Encrypt (requires public domain)
 
@@ -235,7 +244,7 @@ docker compose down -v
 ## 📄 License
 
 MIT License - Feel free to use, modify, and share
+## 📝 Version History
 
-## 🤝 Contributing
-
+- **v2025.12.6.001** - Initial release with Tailscale-managed valid HTTPS certificates (zero warnings)
 Found a bug or have an improvement? Submit a pull request or open an issue on GitHub.

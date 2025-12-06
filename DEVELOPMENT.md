@@ -71,6 +71,81 @@ docker compose -f docker-compose.beta.yaml down
    - "Ephemeral" = auto-removes if device goes offline for 10+ minutes
    - **Result**: Restarts don't require manual approval!
 
+## Beta Data Strategy: Persistent Admin with Optional Purge
+
+### Overview
+The beta stack uses a **persistent volume** for the Open WebUI data. This means:
+- ✅ Admin account persists across container restarts
+- ✅ Test data (conversations, models, settings) carries over between feature iterations
+- ✅ Realistic testing environment (mimics production behavior)
+- ✅ Optional purge available before major releases or new features
+
+### One-Time Setup: Create Default Beta Admin
+
+1. **Access the beta instance:**
+   - Go to https://jarvis-beta.tailcd013.ts.net
+   - You'll see "Create Admin Account" prompt
+
+2. **Create admin (first time only):**
+   - Username: `admin`
+   - Password: [Create something secure, save in password manager]
+   - Email: admin@jarvis-beta.local
+
+3. **After this, admin persists:**
+   - Restarts won't reset credentials
+   - All your test configurations save automatically
+
+### Development Workflow with Persistent Data
+
+```bash
+# Day 1: Start beta feature branch
+git checkout -b feature/my-feature
+docker compose -f docker-compose.beta.yaml --env-file .env.beta up -d
+# Log in with your admin account
+# Test feature, create sample conversations
+
+# Day 2: Continue work, admin still there
+docker compose -f docker-compose.beta.yaml down
+docker compose -f docker-compose.beta.yaml --env-file .env.beta up -d
+# Admin account ready to go - no setup needed!
+
+# Day 3: Feature complete, merge to develop
+git add .
+git commit -m "feat: implement my feature"
+git checkout develop
+git merge feature/my-feature
+```
+
+### Optional: Purge Test Data Before Release
+
+If your test conversations and data feel "polluted" before pushing a beta version to main:
+
+```bash
+# OPTION A: Remove just the Open WebUI data (keeps Ollama models)
+docker volume rm openwebuiandollama_open-webui-beta
+docker compose -f docker-compose.beta.yaml --env-file .env.beta restart open-webui-beta
+# Fresh start - will prompt for new admin on next access
+
+# OPTION B: Full reset (remove everything beta-related)
+docker compose -f docker-compose.beta.yaml down -v
+docker compose -f docker-compose.beta.yaml --env-file .env.beta up -d
+# Same as OPTION A but also clears Ollama cache
+```
+
+### When to Purge
+
+- **Before major version release** (v2025.12.6.002) - start with clean slate
+- **Between major feature areas** - if test data feels cluttered
+- **Never automatically** - always a manual choice to keep control
+
+### Key Points
+
+✅ **Persistent state** = realistic testing (conversations, settings, API keys save)
+✅ **No repeated setup** = faster iterations (admin already there)
+✅ **Optional reset** = clean slate when needed (one command)
+✅ **Separate from production** = zero risk of pollution
+✅ **Zero bloat** = Open WebUI data stays lightweight
+
 ## Git Workflow for Beta Development
 
 ### Branch Structure

@@ -17,6 +17,11 @@
    docker compose -f docker-compose.beta.yaml --env-file .env.beta up -d
    ```
 
+4. **Create admin account** (first access only):
+   - Go to https://jarvis-beta.tailcd013.ts.net
+   - Set username/password (persists across restarts!)
+   - This admin account is now reusable for all beta development
+
 ## Daily Workflow
 
 ### Test Production (unchanged)
@@ -38,8 +43,15 @@ https://jarvis-beta.tailcd013.ts.net
    ```bash
    docker compose -f docker-compose.beta.yaml --env-file .env.beta restart
    ```
-3. **Test immediately** - no manual approval needed (reusable key!)
+3. **Test immediately** - admin account still there, no relogin needed!
 4. **No certificate warnings** - Tailscale handles it automatically
+
+### Data Persistence
+
+- Admin account persists across restarts
+- Test conversations and configurations save automatically
+- Each feature iteration keeps the same data (realistic testing)
+- To start fresh before a release: `docker volume rm openwebuiandollama_open-webui-beta`
 
 ## Committing Changes
 

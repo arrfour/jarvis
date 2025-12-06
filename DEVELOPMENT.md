@@ -38,15 +38,43 @@ docker compose up -d
 # Access: https://jarvis-beta.tailcd013.ts.net
 ```
 
+### Unified Commands (from project root)
+
+For convenience, you can manage both stacks from the root directory:
+
+```bash
+# Start both stacks at once
+docker compose up -d
+
+# View all containers from both stacks
+docker compose ps
+
+# Restart both stacks
+docker compose restart
+
+# Stop both stacks
+docker compose down
+```
+
+Or use the helper script:
+
+```bash
+./manage.sh start                    # Start both
+./manage.sh restart-prod             # Restart only production
+./manage.sh restart-beta             # Restart only beta
+./manage.sh logs                     # View all logs
+./manage.sh help                     # Show all commands
+```
+
 ### View Both Stacks
 ```bash
 # All containers
 docker ps
 
-# Just production
+# Just production (from production directory)
 cd production && docker compose ps
 
-# Just beta
+# Just beta (from beta directory)
 cd beta && docker compose ps
 ```
 

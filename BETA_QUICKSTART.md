@@ -5,7 +5,7 @@
 1. **Generate beta auth key** (reusable, auto-approves):
    - Go to https://login.tailscale.com/admin/settings/keys
    - Create auth key with ✓ Reusable + ✓ Ephemeral
-   - Add to `.env.beta`: `TS_AUTHKEY_BETA=tskey-api-YOUR_KEY`
+   - Add to `beta/.env`: `TS_AUTHKEY_BETA=tskey-api-YOUR_KEY`
 
 2. **Switch to develop branch:**
    ```bash
@@ -14,7 +14,8 @@
 
 3. **Start beta stack:**
    ```bash
-   docker compose -f docker-compose.beta.yaml --env-file .env.beta up -d
+   cd beta
+   docker compose up -d
    ```
 
 4. **Create admin account** (first access only):
@@ -39,10 +40,11 @@ https://jarvis-beta.tailcd013.ts.net
 
 ### Iterate on Beta Features
 
-1. **Edit files** (e.g., `docker-compose.beta.yaml`)
+1. **Edit files** (e.g., `beta/docker-compose.yaml`, `beta/nginx.conf`)
 2. **Restart beta stack:**
    ```bash
-   docker compose -f docker-compose.beta.yaml --env-file .env.beta restart
+   cd beta
+   docker compose restart
    ```
 3. **Test immediately** - admin account still there, no relogin needed!
 4. **No certificate warnings** - Tailscale handles it automatically
@@ -52,7 +54,7 @@ https://jarvis-beta.tailcd013.ts.net
 - Admin account persists across restarts
 - Test conversations and configurations save automatically
 - Each feature iteration keeps the same data (realistic testing)
-- To start fresh before a release: `docker volume rm openwebuiandollama_open-webui-beta`
+- To start fresh before a release: `docker volume rm jarvis_open-webui-beta`
 
 ## Committing Changes
 
@@ -61,7 +63,7 @@ https://jarvis-beta.tailcd013.ts.net
 git branch  # Should show "* develop"
 
 # Stage changes
-git add docker-compose.beta.yaml nginx.conf
+git add beta/docker-compose.yaml beta/nginx.conf
 
 # Commit with descriptive message
 git commit -m "feat: update beta feature X"

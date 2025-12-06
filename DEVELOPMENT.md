@@ -4,26 +4,37 @@
 
 ```
 jarvis/
-├── docker-compose.yaml       # Production stack
-├── docker-compose.beta.yaml  # Beta/development stack (parallel)
-├── .env                       # Production Tailscale auth key
-├── .env.beta                  # Beta Tailscale auth key
-├── nginx.conf                 # Shared Nginx config
-├── compose.yaml              # (alias for docker-compose.yaml)
-└── README.md
+├── production/
+│   ├── docker-compose.yaml   # Production stack
+│   ├── nginx.conf            # Production reverse proxy
+│   ├── .env                  # Production Tailscale auth key (gitignored)
+│   └── README.md
+│
+├── beta/
+│   ├── docker-compose.yaml   # Beta/development stack
+│   ├── nginx.conf            # Beta reverse proxy
+│   ├── .env                  # Beta Tailscale auth key (gitignored)
+│   ├── assets/               # Red branding (favicon, logo)
+│   └── README.md
+│
+├── shared/                   # (future: shared configs)
+├── README.md
+└── DEVELOPMENT.md
 ```
 
 ## Running Both Stacks in Parallel
 
 ### Production Stack (currently running)
 ```bash
-docker compose -f docker-compose.yaml up -d
+cd production
+docker compose up -d
 # Access: https://jarvis.tailcd013.ts.net
 ```
 
 ### Beta Stack (for testing new features)
 ```bash
-docker compose -f docker-compose.beta.yaml --env-file .env.beta up -d
+cd beta
+docker compose up -d
 # Access: https://jarvis-beta.tailcd013.ts.net
 ```
 
@@ -33,23 +44,19 @@ docker compose -f docker-compose.beta.yaml --env-file .env.beta up -d
 docker ps
 
 # Just production
-docker compose -f docker-compose.yaml ps
+cd production && docker compose ps
 
 # Just beta
-docker compose -f docker-compose.beta.yaml ps
+cd beta && docker compose ps
 ```
 
 ### Stop One Stack Without Affecting the Other
 ```bash
 # Stop only beta (production keeps running)
-docker compose -f docker-compose.beta.yaml down
+cd beta && docker compose down
 
 # Stop only production (beta keeps running)
-docker compose -f docker-compose.yaml down
-
-# Stop everything
-docker compose -f docker-compose.yaml down
-docker compose -f docker-compose.beta.yaml down
+cd production && docker compose down
 ```
 
 ## Setting Up Beta Auth Key (No More Manual Approvals)

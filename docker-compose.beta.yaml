@@ -18,6 +18,7 @@ services:
     image: tailscale/tailscale:latest
     container_name: tailscale-sidecar-beta
     hostname: jarvis-beta
+    network_mode: host
     privileged: true
     environment:
       TS_AUTHKEY: ${TS_AUTHKEY_BETA}
@@ -30,14 +31,13 @@ services:
       - NET_ADMIN
       - SYS_MODULE
     restart: always
-    network_mode: host
 
   nginx-beta:
     image: nginx:alpine
     container_name: nginx-beta
     restart: always
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-beta.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - open-webui-beta
     networks:

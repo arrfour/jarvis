@@ -32,8 +32,9 @@ https://jarvis.tailcd013.ts.net
 
 ### Test Beta (new features)
 ```bash
-# Beta runs in parallel
+# Beta runs in parallel - RED UI indicates beta version
 https://jarvis-beta.tailcd013.ts.net
+# Look for: Red favicon (β), red "BETA" logo
 ```
 
 ### Iterate on Beta Features

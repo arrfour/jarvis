@@ -71,6 +71,32 @@ docker compose -f docker-compose.beta.yaml down
    - "Ephemeral" = auto-removes if device goes offline for 10+ minutes
    - **Result**: Restarts don't require manual approval!
 
+## Visual Differentiation: Beta vs Production
+
+### What You'll See
+
+When you access the beta instance at `https://jarvis-beta.tailcd013.ts.net`:
+
+1. **Browser tab**: Shows **red favicon with β symbol** (vs normal icon in production)
+2. **App logo**: **Red "BETA" logo** (vs production logo in production)
+3. **Visual branding**: Makes it instantly obvious which version you're using
+
+### Why This Matters
+
+- ✅ **Prevents accidents** - won't confuse beta with production
+- ✅ **Quick visual check** - look at your browser tabs, know instantly
+- ✅ **User awareness** - testers know they're on experimental version
+- ✅ **Zero performance impact** - just SVG images, no overhead
+
+### Assets Location
+
+All beta branding is in the `beta-assets/` directory:
+- `favicon-beta.svg` - Red favicon with β symbol
+- `logo-beta.svg` - Red "BETA" text logo
+- `beta-banner.html` - Optional inline banner script
+
+These are automatically mounted into the beta container at startup.
+
 ## Beta Data Strategy: Persistent Admin with Optional Purge
 
 ### Overview

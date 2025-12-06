@@ -16,6 +16,13 @@ case "$1" in
     echo "✅ Both stacks running!"
     echo ""
     docker-compose --profile all ps
+    echo ""
+    echo "⏳ Waiting for Tailscale to be ready..."
+    sleep 5
+    echo "🔧 Configuring Tailscale Serve..."
+    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
+    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    echo "✅ Tailscale Serve configured!"
     ;;
 
   start-prod|up-prod)
@@ -96,18 +103,37 @@ case "$1" in
     echo "🔄 Restarting both stacks..."
     docker-compose --profile all restart
     echo "✅ Both stacks restarted!"
+    echo ""
+    echo "⏳ Waiting for Tailscale to be ready..."
+    sleep 5
+    echo "🔧 Reconfiguring Tailscale Serve..."
+    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
+    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    echo "✅ Tailscale Serve reconfigured!"
     ;;
 
   restart-prod)
     echo "🔄 Restarting production stack..."
     docker-compose restart open-webui2 tailscale-sidecar nginx-prod
     echo "✅ Production stack restarted!"
+    echo ""
+    echo "⏳ Waiting for Tailscale to be ready..."
+    sleep 3
+    echo "🔧 Reconfiguring Tailscale Serve for production..."
+    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
+    echo "✅ Production Tailscale Serve reconfigured!"
     ;;
 
   restart-beta)
     echo "🔄 Restarting beta stack..."
     docker-compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
     echo "✅ Beta stack restarted!"
+    echo ""
+    echo "⏳ Waiting for Tailscale to be ready..."
+    sleep 3
+    echo "🔧 Reconfiguring Tailscale Serve for beta..."
+    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    echo "✅ Beta Tailscale Serve reconfigured!"
     ;;
 
   status|ps)

@@ -7,8 +7,6 @@
 #   docker compose down                       # Stop both stacks
 #   docker compose ps                         # View all containers
 
-version: '3.8'
-
 services:
   # Production Stack Services
   open-webui2:

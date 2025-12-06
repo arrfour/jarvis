@@ -12,39 +12,39 @@ export $(cat "$SCRIPT_DIR/beta/.env" 2>/dev/null | grep -v '^#' | xargs)
 case "$1" in
   start|up)
     echo "🚀 Starting both production and beta stacks..."
-    docker compose up -d
+    docker-compose --profile all up -d
     echo "✅ Both stacks running!"
     echo ""
-    docker compose ps
+    docker-compose --profile all ps
     ;;
 
   start-prod|up-prod)
     echo "🚀 Starting production stack only..."
-    docker compose up -d --profile prod
+    docker-compose --profile prod up -d
     echo "✅ Production stack running!"
     ;;
 
   start-beta|up-beta)
     echo "🚀 Starting beta stack only..."
-    docker compose up -d --profile beta
+    docker-compose --profile beta up -d
     echo "✅ Beta stack running!"
     ;;
 
   stop|down)
     echo "🛑 Stopping both stacks..."
-    docker compose down
+    docker-compose --profile all down
     echo "✅ Both stacks stopped!"
     ;;
 
   stop-prod|down-prod)
     echo "🛑 Stopping production stack..."
-    docker compose down open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || docker compose stop open-webui2 tailscale-sidecar nginx-prod
+    docker-compose down open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || docker-compose stop open-webui2 tailscale-sidecar nginx-prod
     echo "✅ Production stack stopped!"
     ;;
 
   stop-beta|down-beta)
     echo "🛑 Stopping beta stack..."
-    docker compose down open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || docker compose stop open-webui-beta tailscale-sidecar-beta nginx-beta
+    docker-compose down open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || docker-compose stop open-webui-beta tailscale-sidecar-beta nginx-beta
     echo "✅ Beta stack stopped!"
     ;;
 
@@ -54,7 +54,7 @@ case "$1" in
     read -p "Type 'yes' to confirm: " confirm
     if [ "$confirm" = "yes" ]; then
       echo "💣 Nuking both stacks and volumes..."
-      docker compose down -v
+      docker-compose --profile all down -v
       echo "✅ Both stacks and all volumes destroyed!"
       echo "⚠️  All data is permanently gone. Run './manage.sh start' to recreate fresh."
     else
@@ -69,7 +69,7 @@ case "$1" in
     if [ "$confirm" = "yes" ]; then
       echo "💣 Nuking production stack and volumes..."
       docker volume rm jarvis_ollama jarvis_open-webui jarvis_tailscale-sidecar-state 2>/dev/null || true
-      docker compose stop open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true
+      docker-compose stop open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true
       echo "✅ Production stack and volumes destroyed!"
       echo "⚠️  Production data is permanently gone. Run './manage.sh start-prod' to recreate fresh."
     else
@@ -84,7 +84,7 @@ case "$1" in
     if [ "$confirm" = "yes" ]; then
       echo "💣 Nuking beta stack and volumes..."
       docker volume rm jarvis_ollama-beta jarvis_open-webui-beta jarvis_tailscale-sidecar-beta-state 2>/dev/null || true
-      docker compose stop open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true
+      docker-compose stop open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true
       echo "✅ Beta stack and volumes destroyed!"
       echo "⚠️  Beta data is permanently gone. Run './manage.sh start-beta' to recreate fresh."
     else
@@ -94,50 +94,50 @@ case "$1" in
 
   restart)
     echo "🔄 Restarting both stacks..."
-    docker compose restart
+    docker-compose --profile all restart
     echo "✅ Both stacks restarted!"
     ;;
 
   restart-prod)
     echo "🔄 Restarting production stack..."
-    docker compose restart open-webui2 tailscale-sidecar nginx-prod
+    docker-compose restart open-webui2 tailscale-sidecar nginx-prod
     echo "✅ Production stack restarted!"
     ;;
 
   restart-beta)
     echo "🔄 Restarting beta stack..."
-    docker compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
+    docker-compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
     echo "✅ Beta stack restarted!"
     ;;
 
   status|ps)
     echo "📊 Stack Status:"
-    docker compose ps
+    docker-compose --profile all ps
     ;;
 
   logs)
     echo "📋 Logs (all stacks) - Press Ctrl+C to exit"
-    docker compose logs -f
+    docker-compose --profile all logs -f
     ;;
 
   logs-prod)
     echo "📋 Production logs - Press Ctrl+C to exit"
-    docker compose logs -f open-webui2 tailscale-sidecar nginx-prod
+    docker-compose logs -f open-webui2 tailscale-sidecar nginx-prod
     ;;
 
   logs-beta)
     echo "📋 Beta logs - Press Ctrl+C to exit"
-    docker compose logs -f open-webui-beta tailscale-sidecar-beta nginx-beta
+    docker-compose logs -f open-webui-beta tailscale-sidecar-beta nginx-beta
     ;;
 
   config)
     echo "📝 Docker Compose Configuration:"
-    docker compose config
+    docker-compose --profile all config
     ;;
 
   validate)
     echo "✓ Validating docker-compose.yaml..."
-    docker compose config > /dev/null
+    docker-compose --profile all config > /dev/null
     echo "✅ Configuration is valid!"
     ;;
 

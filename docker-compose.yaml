@@ -8,7 +8,9 @@
 #   docker compose ps                         # View all containers
 
 services:
-  # Production Stack Services
+  # ============================================
+  # PRODUCTION STACK
+  # ============================================
   open-webui2:
     image: ghcr.io/open-webui/open-webui:Latest
     container_name: open-webui2
@@ -62,7 +64,9 @@ services:
     ports:
       - "127.0.0.1:8080:80"
 
-  # Beta Stack Services
+  # ============================================
+  # BETA STACK
+  # ============================================
   open-webui-beta:
     image: ghcr.io/open-webui/open-webui:Latest
     container_name: open-webui-beta

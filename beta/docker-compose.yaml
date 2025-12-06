@@ -10,8 +10,8 @@ services:
     volumes:
       - ollama-beta:/root/.ollama
       - open-webui-beta:/app/backend/data
-      - ./beta-assets/favicon-beta.svg:/app/backend/static/favicon.png:ro
-      - ./beta-assets/logo-beta.svg:/app/backend/static/logo.svg:ro
+      - ./assets/favicon-beta.svg:/app/backend/static/favicon.png:ro
+      - ./assets/logo-beta.svg:/app/backend/static/logo.svg:ro
     restart: always
     networks:
       - internal-beta
@@ -39,7 +39,7 @@ services:
     container_name: nginx-beta
     restart: always
     volumes:
-      - ./nginx-beta.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - open-webui-beta
     networks:

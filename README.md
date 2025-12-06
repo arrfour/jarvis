@@ -17,15 +17,60 @@ A containerized Open WebUI instance with Ollama support, accessible securely via
 
 - Docker and Docker Compose
 - Tailscale account (free at https://tailscale.com)
-- Tailscale auth key with "Reusable" and "Ephemeral" flags
+- Tailscale auth keys (separate for production and beta)
+
+### Structure
+
+```
+jarvis/
+├── production/          ← Live production stack
+│   ├── docker-compose.yaml
+│   ├── nginx.conf
+│   ├── .env             (add your TS_AUTHKEY here)
+│   └── README.md
+│
+├── beta/                ← Beta/development stack
+│   ├── docker-compose.yaml
+│   ├── nginx.conf
+│   ├── assets/          (red branding)
+│   ├── .env             (add your TS_AUTHKEY_BETA here)
+│   └── README.md
+│
+└── shared/              (future: shared configs)
+```
 
 ### Setup (5 minutes)
 
-1. **Clone this repository**
-   ```bash
-   git clone https://github.com/arrfour/jarvis.git
-   cd jarvis
-   ```
+#### Production
+
+```bash
+cd production
+cp .env.example .env
+# Edit .env and add your Tailscale production auth key
+docker compose up -d
+```
+
+Access: `https://jarvis.tailcd013.ts.net`
+
+#### Beta (Optional - for development)
+
+```bash
+cd beta
+cp .env.example .env
+# Edit .env and add your Tailscale beta auth key (reusable + ephemeral)
+docker compose up -d
+```
+
+Access: `https://jarvis-beta.tailcd013.ts.net` (red branding indicates beta)
+
+## 🔐 Tailscale Auth Keys
+
+Generate two auth keys at https://login.tailscale.com/admin/settings/keys:
+
+1. **Production key** → `production/.env` as `TS_AUTHKEY`
+2. **Beta key** → `beta/.env` as `TS_AUTHKEY_BETA`
+
+Both should have ✓ Reusable and ✓ Ephemeral flags checked.
 
 2. **Generate Tailscale Auth Key**
    - Go to https://login.tailscale.com/admin/settings/keys

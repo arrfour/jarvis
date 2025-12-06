@@ -1,0 +1,60 @@
+# Beta/Development stack - runs alongside production
+# Use different container names, ports, and Tailscale hostname
+version: '3.8'
+
+services:
+  open-webui-beta:
+    image: ghcr.io/open-webui/open-webui:Latest
+    container_name: open-webui-beta
+    gpus: all
+    volumes:
+      - ollama-beta:/root/.ollama
+      - open-webui-beta:/app/backend/data
+      - ./assets/favicon-beta.svg:/app/backend/static/favicon.png:ro
+      - ./assets/logo-beta.svg:/app/backend/static/logo.svg:ro
+    restart: always
+    networks:
+      - internal-beta
+
+  tailscale-sidecar-beta:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-sidecar-beta
+    hostname: jarvis-beta
+    network_mode: host
+    privileged: true
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY_BETA}
+      TS_HOSTNAME: jarvis-beta
+      TS_ACCEPT_DNS: true
+    volumes:
+      - tailscale-sidecar-beta-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: always
+
+  nginx-beta:
+    image: nginx:alpine
+    container_name: nginx-beta
+    restart: always
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - open-webui-beta
+    networks:
+      - internal-beta
+    ports:
+      - "127.0.0.1:8081:80"
+
+networks:
+  internal-beta:
+    driver: bridge
+
+volumes:
+  ollama-beta:
+    driver: local
+  open-webui-beta:
+    driver: local
+  tailscale-sidecar-beta-state:
+    driver: local

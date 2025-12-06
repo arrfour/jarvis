@@ -1,16 +1,21 @@
 # Environment variables
-.env
+production/.env
+beta/.env
 .env.local
 .env.*.local
 
 # SSL certificates (regenerate on each system)
-certs/
+production/certs/
+beta/certs/
 !certs/.gitkeep
 
 # Docker volumes and state
-tailscale-state/
-ollama/
-open-webui/
+production/tailscale-state/
+production/ollama/
+production/open-webui/
+beta/tailscale-state/
+beta/ollama-beta/
+beta/open-webui-beta/
 
 # OS
 .DS_Store

@@ -17,15 +17,102 @@ A containerized Open WebUI instance with Ollama support, accessible securely via
 
 - Docker and Docker Compose
 - Tailscale account (free at https://tailscale.com)
-- Tailscale auth key with "Reusable" and "Ephemeral" flags
+- Tailscale auth keys (separate for production and beta)
+
+### Structure
+
+```
+jarvis/
+├── production/          ← Live production stack
+│   ├── docker-compose.yaml
+│   ├── nginx.conf
+│   ├── .env             (add your TS_AUTHKEY here)
+│   └── README.md
+│
+├── beta/                ← Beta/development stack
+│   ├── docker-compose.yaml
+│   ├── nginx.conf
+│   ├── assets/          (red branding)
+│   ├── .env             (add your TS_AUTHKEY_BETA here)
+│   └── README.md
+│
+└── shared/              (future: shared configs)
+```
 
 ### Setup (5 minutes)
 
-1. **Clone this repository**
-   ```bash
-   git clone https://github.com/arrfour/jarvis.git
-   cd jarvis
-   ```
+#### Option A: Unified Commands (Recommended)
+
+Start both stacks with a single command:
+
+```bash
+# Add auth keys to env files
+cp production/.env.example production/.env
+cp beta/.env.example beta/.env
+# Edit both files and add your Tailscale auth keys
+
+# Start both stacks
+docker compose up -d
+
+# Or use the helper script
+./manage.sh start
+```
+
+#### Option B: Independent Commands
+
+Start stacks separately:
+
+```bash
+# Production only
+cd production && docker compose up -d
+
+# Beta only  
+cd beta && docker compose up -d
+```
+
+### Quick Commands
+
+```bash
+# Using root docker-compose (from project root)
+docker compose up -d                    # Start both stacks
+docker compose ps                       # View all containers
+docker compose restart                  # Restart both stacks
+docker compose down                     # Stop both stacks
+
+# Using helper script (from project root)
+./manage.sh start                       # Start both
+./manage.sh restart-beta                # Restart only beta
+./manage.sh logs-prod                   # View production logs
+./manage.sh help                        # Show all commands
+
+# Using individual compose files
+cd production && docker compose up -d   # Start production
+cd beta && docker compose up -d         # Start beta
+# Using individual compose files
+cd production && docker compose up -d   # Start production
+cd beta && docker compose up -d         # Start beta
+cd beta && docker compose restart       # Restart only beta
+```
+
+## 🔐 Access Your Stacks
+
+### Production
+- **URL:** `https://jarvis.tailcd013.ts.net`
+- **Setup:** Run from `production/` directory
+
+### Beta
+- **URL:** `https://jarvis-beta.tailcd013.ts.net`
+- **Visual Indicator:** Red branding (favicon + logo)
+- **Setup:** Run from `beta/` directory
+
+## 🔐 Tailscale Auth Keys
+
+Generate two auth keys at https://login.tailscale.com/admin/settings/keys:
+
+1. **Production key** → `production/.env` as `TS_AUTHKEY`
+2. **Beta key** → `beta/.env` as `TS_AUTHKEY_BETA`
+
+Both should have ✓ Reusable and ✓ Ephemeral flags checked.
 
 2. **Generate Tailscale Auth Key**
    - Go to https://login.tailscale.com/admin/settings/keys

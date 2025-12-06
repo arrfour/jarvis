@@ -1,0 +1,35 @@
+<!-- Beta Visual Differentiation -->
+<!-- This snippet can be added to Open WebUI's base template if possible -->
+<!-- Or served via nginx header injection -->
+
+<script>
+// Auto-update page title with beta indicator
+document.title = "🧪 " + document.title;
+
+// Optional: Add beta banner to page
+function addBetaBanner() {
+  const banner = document.createElement('div');
+  banner.innerHTML = '🧪 BETA VERSION - Test environment only';
+  banner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ff6b6b;
+    color: white;
+    padding: 8px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 14px;
+    z-index: 10000;
+  `;
+  document.body.prepend(banner);
+}
+
+// Add banner when page loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', addBetaBanner);
+} else {
+  addBetaBanner();
+}
+</script>

@@ -18,6 +18,8 @@ services:
     profiles:
       - prod
       - all
+    environment:
+      BACKEND_URL: http://localhost:8080/api
     volumes:
       - ollama:/root/.ollama
       - open-webui:/app/backend/data
@@ -74,6 +76,8 @@ services:
     profiles:
       - beta
       - all
+    environment:
+      BACKEND_URL: http://localhost:8081/api
     volumes:
       - ollama-beta:/root/.ollama
       - open-webui-beta:/app/backend/data

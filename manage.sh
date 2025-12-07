@@ -223,8 +223,10 @@ EOF
     echo "✅ Tailscale Serve configured!"
     echo ""
     echo "Available URLs (tailnet only):"
-    echo "  Production: https://jarvis.tailcd013.ts.net"
-    echo "  Beta: https://jarvis-beta.tailcd013.ts.net"
+    echo "  Production: https://jarvis.YOUR_TAILNET.ts.net"
+    echo "  Beta: https://jarvis-beta.YOUR_TAILNET.ts.net"
+    echo ""
+    echo "  (Replace YOUR_TAILNET with your actual Tailnet name)"
     ;;
 
   *)

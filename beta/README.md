@@ -13,7 +13,7 @@ docker compose up -d
 
 ## Access
 
-- **URL:** `https://jarvis-beta.tailcd013.ts.net`
+- **URL:** `https://jarvis-beta.YOUR_TAILNET.ts.net` (replace `YOUR_TAILNET` with your actual Tailnet name)
 - **Visual Indicator:** Red beta branding (favicon + logo)
 - **Status:** Check with `docker compose ps`
 

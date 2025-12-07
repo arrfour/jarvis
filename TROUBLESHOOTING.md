@@ -4,7 +4,7 @@
 
 ### Symptoms
 - ✅ Application loads fine on `http://localhost:8080` (production) or `http://localhost:8081` (beta)
-- ❌ Getting "500 Internal Server Error" when accessing via Tailscale FQDN (`https://jarvis.tailcd013.ts.net` or `https://jarvis-beta.tailcd013.ts.net`)
+- ❌ Getting "500 Internal Server Error" when accessing via Tailscale FQDN (`https://jarvis.YOUR_TAILNET.ts.net` or `https://jarvis-beta.YOUR_TAILNET.ts.net`)
 - ❌ Frontend loads but API calls fail
 
 ### Root Cause
@@ -34,8 +34,8 @@ tailscale serve https / http://localhost:8081
 Or if you need to configure it via the admin console, add these serve configurations to your device in the Tailscale admin console.
 
 #### Step 3: Verify
-- Access `https://jarvis.tailcd013.ts.net` - should work
-- Access `https://jarvis-beta.tailcd013.ts.net` - should work (red branding)
+- Access `https://jarvis.YOUR_TAILNET.ts.net` - should work
+- Access `https://jarvis-beta.YOUR_TAILNET.ts.net` - should work (red branding)
 
 ### Alternative: Use Tailscale Serve Configuration Files
 

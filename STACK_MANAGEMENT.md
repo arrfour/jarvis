@@ -2,46 +2,38 @@
 
 This document explains how to manage both production and beta stacks together or independently.
 
-## 📊 Two Ways to Manage Stacks
+## 📊 Three Ways to Manage Stacks
 
-### Method 1: Unified Root Docker Compose (Recommended)
+### Method 1: Ansible (Infrastructure as Code) 🆕
 
-Manage both stacks from the project root directory with a single `docker-compose.yaml`:
+Use Ansible for idempotent, declarative stack management:
 
 ```bash
-# Start both stacks
-docker compose up -d
+cd ansible
 
-# View all containers
-docker compose ps
+# One-time setup
+make install
 
-# Restart both stacks
-docker compose restart
-
-# Stop both stacks
-docker compose down
-
-# Restart only production
-docker compose restart open-webui2 tailscale-sidecar nginx-prod
-
-# Restart only beta
-docker compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
-
-# View logs (all stacks)
-docker compose logs -f
-
-# View logs (production only)
-docker compose logs -f open-webui2 tailscale-sidecar nginx-prod
+# Manage stacks
+make start                    # Start both stacks
+make start-prod               # Start only production
+make restart-beta             # Restart only beta
+make status                   # View status
+make stop                     # Stop both stacks
 ```
 
 **Pros:**
-- ✅ Single command to start everything
-- ✅ Can still control stacks independently
-- ✅ Easy to see all containers: `docker compose ps`
-- ✅ Familiar docker compose workflow
+- ✅ Idempotent operations (safe to run multiple times)
+- ✅ Infrastructure as code (version controlled)
+- ✅ Detailed logging and error handling
+- ✅ Easily extensible for multi-server setups
+- ✅ CI/CD integration friendly
 
 **Cons:**
-- ❌ Need to specify service names when restarting individual services
+- ❌ Requires Ansible installation
+- ❌ Slightly more verbose for simple tasks
+
+See [ansible/README.md](ansible/README.md) for complete documentation.
 
 ### Method 2: Helper Script (Most Convenient)
 
@@ -87,7 +79,37 @@ Use the `manage.sh` helper script for easy commands:
 **Cons:**
 - ❌ One more abstraction layer
 
-### Method 3: Individual Directory Compose Files (Original)
+### Method 3: Direct Docker Compose
+
+Use Docker Compose directly from the root directory:
+
+```bash
+# Start both stacks
+docker compose --profile all up -d
+
+# Start only production
+docker compose --profile prod up -d
+
+# Restart specific services
+docker compose restart open-webui2 tailscale-sidecar nginx-prod
+
+# View all containers
+docker compose ps
+
+# Stop both stacks
+docker compose down
+```
+
+**Pros:**
+- ✅ Direct control with Docker Compose
+- ✅ No additional scripts needed
+- ✅ Standard Docker workflow
+
+**Cons:**
+- ❌ Need to remember profile flags
+- ❌ More verbose commands
+
+### Method 4: Individual Directory Compose Files
 
 Manage each stack separately from its directory:
 
@@ -112,18 +134,27 @@ cd beta && docker compose down
 ```
 
 **Pros:**
-- ✅ Most isolation between stacks
-- ✅ Familiar single-service workflow
+- ✅ Maximum isolation between stacks
+- ✅ Simple single-service workflow
 
 **Cons:**
-- ❌ More typing
-- ❌ Must `cd` to each directory
+- ❌ More typing and directory changes
+- ❌ Must run commands in each directory
 
 ## 🎯 Recommended Workflow
 
-### For Daily Development
+### Choose Your Tool
 
-Use the helper script:
+| Scenario | Recommended Method |
+|----------|-------------------|
+| **Daily development** | Bash script (`./manage.sh`) |
+| **CI/CD pipelines** | Ansible (`cd ansible && make start`) |
+| **Multi-server deployments** | Ansible |
+| **Quick debugging** | Docker Compose directly |
+| **Infrastructure as code** | Ansible |
+| **Simplest learning curve** | Bash script |
+
+### For Daily Development (Bash Script)
 
 ```bash
 # Morning: Start everything
@@ -131,6 +162,31 @@ Use the helper script:
 
 # During work: Restart beta when testing
 ./manage.sh restart-beta
+
+# Evening: Stop everything
+./manage.sh stop
+```
+
+### For Production Deployments (Ansible)
+
+```bash
+cd ansible
+
+# One-time setup
+make install
+make validate
+
+# Deploy
+make start-prod
+
+# Monitor
+make status
+
+# Update and restart
+make restart-prod
+```
+
+### For Emergency Restarts (Docker Compose)
 
 # Evening: Stop everything
 ./manage.sh stop

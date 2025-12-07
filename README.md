@@ -188,6 +188,8 @@ Both are **gitignored** (never committed). Template versions (`.env.example`) ar
 ## 📚 Documentation
 
 **New to this setup?** Start here:
+- [`README.md`](./README.md) - **Start here** - Overview and quick start (you're reading it)
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md) - **Deploy to Linux server** - Portability guide and migration from WSL
 - [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md) - Common issues and fixes
 - [`DEVELOPMENT.md`](./DEVELOPMENT.md) - Development workflow and git practices
 - [`STACK_MANAGEMENT.md`](./STACK_MANAGEMENT.md) - Deep dive into manual operations

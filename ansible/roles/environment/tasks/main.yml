@@ -1,0 +1,71 @@
+---
+# Environment role - Manages .env files and configuration
+# This role ensures environment files exist and are properly configured
+
+- name: Check if production .env file exists
+  stat:
+    path: "{{ production_dir }}/.env"
+  register: prod_env_stat
+
+- name: Check if beta .env file exists
+  stat:
+    path: "{{ beta_dir }}/.env"
+  register: beta_env_stat
+
+- name: Warn if production .env is missing
+  debug:
+    msg: |
+      ⚠️  Production .env file not found!
+      Create it from template: cp {{ production_dir }}/.env.example {{ production_dir }}/.env
+      Then add your TS_AUTHKEY value.
+  when: not prod_env_stat.stat.exists
+
+- name: Warn if beta .env is missing
+  debug:
+    msg: |
+      ⚠️  Beta .env file not found!
+      Create it from template: cp {{ beta_dir }}/.env.example {{ beta_dir }}/.env
+      Then add your TS_AUTHKEY_BETA value.
+  when: not beta_env_stat.stat.exists
+
+- name: Check for TS_AUTHKEY in production .env
+  shell: grep -q "TS_AUTHKEY=" "{{ production_dir }}/.env" && ! grep -q "TS_AUTHKEY=tskey-" "{{ production_dir }}/.env"
+  register: prod_authkey_check
+  changed_when: false
+  failed_when: false
+  when: prod_env_stat.stat.exists
+
+- name: Warn if production TS_AUTHKEY is not set
+  debug:
+    msg: "⚠️  Production TS_AUTHKEY appears to be missing or using placeholder. Update {{ production_dir }}/.env"
+  when: prod_env_stat.stat.exists and prod_authkey_check.rc != 0
+
+- name: Check for TS_AUTHKEY_BETA in beta .env
+  shell: grep -q "TS_AUTHKEY_BETA=" "{{ beta_dir }}/.env" && ! grep -q "TS_AUTHKEY_BETA=tskey-" "{{ beta_dir }}/.env"
+  register: beta_authkey_check
+  changed_when: false
+  failed_when: false
+  when: beta_env_stat.stat.exists
+
+- name: Warn if beta TS_AUTHKEY_BETA is not set
+  debug:
+    msg: "⚠️  Beta TS_AUTHKEY_BETA appears to be missing or using placeholder. Update {{ beta_dir }}/.env"
+  when: beta_env_stat.stat.exists and beta_authkey_check.rc != 0
+
+- name: Validate docker-compose.yaml syntax
+  command: docker compose --profile all -f "{{ compose_file }}" config
+  args:
+    chdir: "{{ project_root }}"
+  register: compose_config
+  changed_when: false
+  failed_when: false
+
+- name: Display validation result
+  debug:
+    msg: "✅ Docker Compose configuration is valid"
+  when: compose_config.rc == 0
+
+- name: Display validation errors
+  debug:
+    msg: "❌ Docker Compose configuration has errors: {{ compose_config.stderr }}"
+  when: compose_config.rc != 0

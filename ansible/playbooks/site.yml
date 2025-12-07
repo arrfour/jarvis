@@ -1,0 +1,54 @@
+---
+# Main Jarvis Stack Management Playbook
+# 
+# This is the primary playbook for managing both production and beta stacks.
+# It provides idempotent infrastructure-as-code management alongside the existing bash scripts.
+#
+# Usage:
+#   # Install requirements first (one-time)
+#   ansible-galaxy install -r requirements.yml
+#
+#   # Manage stacks
+#   ansible-playbook playbooks/site.yml --tags start
+#   ansible-playbook playbooks/site.yml --tags stop
+#   ansible-playbook playbooks/site.yml --tags restart
+#   ansible-playbook playbooks/site.yml --tags status
+#
+# Available tags:
+#   - setup       : Install/verify prerequisites
+#   - start       : Start both stacks
+#   - start-prod  : Start production stack only
+#   - start-beta  : Start beta stack only
+#   - stop        : Stop both stacks
+#   - stop-prod   : Stop production stack only
+#   - stop-beta   : Stop beta stack only
+#   - restart     : Restart both stacks
+#   - restart-prod: Restart production stack only
+#   - restart-beta: Restart beta stack only
+#   - status      : Show stack status
+#   - logs        : Show logs (use -e follow=yes to follow)
+#   - validate    : Validate configuration
+
+- name: Jarvis Stack Management
+  hosts: localhost
+  gather_facts: yes
+  
+  vars:
+    stack_action: "status"  # Default action
+    follow_logs: no
+    
+  tasks:
+    - name: Include setup role
+      import_role:
+        name: setup
+      tags: [setup, never]  # never = only runs when explicitly tagged
+
+    - name: Include environment role
+      import_role:
+        name: environment
+      tags: [setup, validate]
+
+    - name: Include stack operations role
+      import_role:
+        name: stack
+      tags: [always]  # Always include this role

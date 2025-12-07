@@ -1,0 +1,6 @@
+---
+# Quick playbook for checking stack status
+# Usage: ansible-playbook playbooks/status.yml
+
+- import_playbook: site.yml
+  tags: [status]

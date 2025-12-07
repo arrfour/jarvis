@@ -1,0 +1,6 @@
+---
+# Quick playbook for starting both stacks
+# Usage: ansible-playbook playbooks/start.yml
+
+- import_playbook: site.yml
+  tags: [start]

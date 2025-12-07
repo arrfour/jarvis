@@ -1,0 +1,6 @@
+---
+# Quick playbook for restarting both stacks
+# Usage: ansible-playbook playbooks/restart.yml
+
+- import_playbook: site.yml
+  tags: [restart]

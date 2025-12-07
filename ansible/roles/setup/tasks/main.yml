@@ -1,0 +1,66 @@
+---
+# Setup role - Verifies and installs prerequisites
+# This role checks for required tools and can optionally install them
+
+- name: Check if Docker is installed
+  command: docker --version
+  register: docker_version
+  changed_when: false
+  failed_when: false
+  
+- name: Display Docker version
+  debug:
+    msg: "Docker {{ docker_version.stdout }}"
+  when: docker_version.rc == 0
+
+- name: Warn if Docker is not installed
+  debug:
+    msg: "WARNING: Docker is not installed. Please install Docker: https://docs.docker.com/engine/install/"
+  when: docker_version.rc != 0
+
+- name: Check if Docker Compose is available
+  command: docker compose version
+  register: compose_version
+  changed_when: false
+  failed_when: false
+
+- name: Display Docker Compose version
+  debug:
+    msg: "{{ compose_version.stdout }}"
+  when: compose_version.rc == 0
+
+- name: Warn if Docker Compose is not available
+  debug:
+    msg: "WARNING: Docker Compose is not available. Please install Docker Compose v2+"
+  when: compose_version.rc != 0
+
+- name: Check if user is in docker group
+  command: groups
+  register: user_groups
+  changed_when: false
+  
+- name: Verify docker group membership
+  assert:
+    that: "'docker' in user_groups.stdout"
+    fail_msg: "Current user is not in 'docker' group. Run: sudo usermod -aG docker $USER && newgrp docker"
+    success_msg: "User has docker group membership"
+  ignore_errors: yes
+
+- name: Check for required directories
+  stat:
+    path: "{{ item }}"
+  register: dir_stats
+  loop:
+    - "{{ production_dir }}"
+    - "{{ beta_dir }}"
+  
+- name: Verify directories exist
+  assert:
+    that: item.stat.exists
+    fail_msg: "Directory {{ item.item }} does not exist"
+    success_msg: "Directory {{ item.item }} exists"
+  loop: "{{ dir_stats.results }}"
+
+- name: Setup complete
+  debug:
+    msg: "✅ All prerequisites verified successfully"

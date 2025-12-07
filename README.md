@@ -80,9 +80,40 @@ nano beta/.env            # Add TS_AUTHKEY_BETA=tskey-auth-yyyyy
 
 Done! Both stacks are now running.
 
-## 📋 The `manage.sh` Command Reference
+## 📋 Stack Management
 
-The `manage.sh` script is your primary interface for all operations. **This is the recommended way to manage stacks.**
+You have **two options** for managing stacks:
+
+### Option 1: Bash Script (Quick & Simple)
+
+The `manage.sh` script provides quick, intuitive commands:
+
+```bash
+./manage.sh start          # Start both stacks
+./manage.sh restart-beta   # Restart beta only
+./manage.sh logs-prod      # View production logs
+./manage.sh help           # Show all commands
+```
+
+### Option 2: Ansible (Infrastructure as Code)
+
+For idempotent, declarative operations:
+
+```bash
+cd ansible
+make install               # One-time setup
+make start                 # Start both stacks
+make restart-beta          # Restart beta only
+make status                # Check status
+```
+
+See [ansible/README.md](ansible/README.md) for full Ansible documentation.
+
+**Both approaches work side-by-side** - use whichever fits your workflow!
+
+### The `manage.sh` Command Reference
+
+**Recommended for quick operations.**
 
 ### Start/Stop Commands
 

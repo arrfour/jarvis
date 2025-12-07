@@ -1,0 +1,277 @@
+---
+# Stack role - Manages Docker Compose stack operations
+# This role handles starting, stopping, restarting, and monitoring stacks
+
+# ===========================================
+# START OPERATIONS
+# ===========================================
+
+- name: Start both production and beta stacks
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_root }}"
+    profiles:
+      - all
+    state: present
+  register: start_result
+  tags: [start]
+
+- name: Wait for Tailscale to be ready after start
+  pause:
+    seconds: 5
+  when: start_result.changed
+  tags: [start]
+
+- name: Configure Tailscale Serve for production
+  command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+  register: tailscale_prod_config
+  changed_when: "'failed' not in tailscale_prod_config.stderr"
+  failed_when: false
+  when: start_result.changed
+  tags: [start]
+
+- name: Configure Tailscale Serve for beta
+  command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+  register: tailscale_beta_config
+  changed_when: "'failed' not in tailscale_beta_config.stderr"
+  failed_when: false
+  when: start_result.changed
+  tags: [start]
+
+- name: Display start result
+  debug:
+    msg: "✅ Both stacks started successfully"
+  when: start_result.changed
+  tags: [start]
+
+# ===========================================
+# START PRODUCTION ONLY
+# ===========================================
+
+- name: Start production stack only
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_root }}"
+    profiles:
+      - prod
+    state: present
+  register: start_prod_result
+  tags: [start-prod]
+
+- name: Configure Tailscale Serve for production only
+  block:
+    - name: Wait for Tailscale
+      pause:
+        seconds: 3
+    - name: Configure Serve
+      command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+      register: tailscale_prod_only_config
+      changed_when: "'failed' not in tailscale_prod_only_config.stderr"
+      failed_when: false
+  when: start_prod_result.changed
+  tags: [start-prod]
+
+- name: Display production start result
+  debug:
+    msg: "✅ Production stack started successfully"
+  when: start_prod_result.changed
+  tags: [start-prod]
+
+# ===========================================
+# START BETA ONLY
+# ===========================================
+
+- name: Start beta stack only
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_root }}"
+    profiles:
+      - beta
+    state: present
+  register: start_beta_result
+  tags: [start-beta]
+
+- name: Configure Tailscale Serve for beta only
+  block:
+    - name: Wait for Tailscale
+      pause:
+        seconds: 3
+    - name: Configure Serve
+      command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+      register: tailscale_beta_only_config
+      changed_when: "'failed' not in tailscale_beta_only_config.stderr"
+      failed_when: false
+  when: start_beta_result.changed
+  tags: [start-beta]
+
+- name: Display beta start result
+  debug:
+    msg: "✅ Beta stack started successfully"
+  when: start_beta_result.changed
+  tags: [start-beta]
+
+# ===========================================
+# STOP OPERATIONS
+# ===========================================
+
+- name: Stop both stacks
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_root }}"
+    profiles:
+      - all
+    state: absent
+  register: stop_result
+  tags: [stop]
+
+- name: Display stop result
+  debug:
+    msg: "✅ Both stacks stopped successfully"
+  when: stop_result.changed
+  tags: [stop]
+
+- name: Stop production stack only
+  command: docker compose down open-webui2 tailscale-sidecar nginx-prod
+  args:
+    chdir: "{{ project_root }}"
+  register: stop_prod_result
+  changed_when: "'Stopping' in stop_prod_result.stderr or 'Removing' in stop_prod_result.stderr"
+  failed_when: false
+  tags: [stop-prod]
+
+- name: Display production stop result
+  debug:
+    msg: "✅ Production stack stopped"
+  tags: [stop-prod]
+
+- name: Stop beta stack only
+  command: docker compose down open-webui-beta tailscale-sidecar-beta nginx-beta
+  args:
+    chdir: "{{ project_root }}"
+  register: stop_beta_result
+  changed_when: "'Stopping' in stop_beta_result.stderr or 'Removing' in stop_beta_result.stderr"
+  failed_when: false
+  tags: [stop-beta]
+
+- name: Display beta stop result
+  debug:
+    msg: "✅ Beta stack stopped"
+  tags: [stop-beta]
+
+# ===========================================
+# RESTART OPERATIONS
+# ===========================================
+
+- name: Restart both stacks
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_root }}"
+    profiles:
+      - all
+    state: restarted
+  register: restart_result
+  tags: [restart]
+
+- name: Reconfigure Tailscale Serve after restart
+  block:
+    - name: Wait for Tailscale to be ready
+      pause:
+        seconds: 5
+    - name: Reconfigure production Serve
+      command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+      failed_when: false
+    - name: Reconfigure beta Serve
+      command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+      failed_when: false
+  when: restart_result.changed
+  tags: [restart]
+
+- name: Display restart result
+  debug:
+    msg: "✅ Both stacks restarted successfully"
+  when: restart_result.changed
+  tags: [restart]
+
+- name: Restart production stack only
+  command: docker compose restart open-webui2 tailscale-sidecar nginx-prod
+  args:
+    chdir: "{{ project_root }}"
+  register: restart_prod_result
+  changed_when: true
+  tags: [restart-prod]
+
+- name: Reconfigure Tailscale Serve for production
+  block:
+    - name: Wait for Tailscale
+      pause:
+        seconds: 3
+    - name: Reconfigure Serve
+      command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+      failed_when: false
+  tags: [restart-prod]
+
+- name: Display production restart result
+  debug:
+    msg: "✅ Production stack restarted successfully"
+  tags: [restart-prod]
+
+- name: Restart beta stack only
+  command: docker compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
+  args:
+    chdir: "{{ project_root }}"
+  register: restart_beta_result
+  changed_when: true
+  tags: [restart-beta]
+
+- name: Reconfigure Tailscale Serve for beta
+  block:
+    - name: Wait for Tailscale
+      pause:
+        seconds: 3
+    - name: Reconfigure Serve
+      command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+      failed_when: false
+  tags: [restart-beta]
+
+- name: Display beta restart result
+  debug:
+    msg: "✅ Beta stack restarted successfully"
+  tags: [restart-beta]
+
+# ===========================================
+# STATUS OPERATIONS
+# ===========================================
+
+- name: Get stack status
+  command: docker compose --profile all ps
+  args:
+    chdir: "{{ project_root }}"
+  register: status_result
+  changed_when: false
+  tags: [status]
+
+- name: Display stack status
+  debug:
+    msg: "{{ status_result.stdout_lines }}"
+  tags: [status]
+
+# ===========================================
+# LOGS OPERATIONS
+# ===========================================
+
+- name: Display all logs (not following)
+  command: docker compose --profile all logs --tail=100
+  args:
+    chdir: "{{ project_root }}"
+  register: logs_result
+  changed_when: false
+  when: not (follow_logs | bool)
+  tags: [logs, never]
+
+- name: Display logs output
+  debug:
+    msg: "{{ logs_result.stdout_lines }}"
+  when: not (follow_logs | bool)
+  tags: [logs, never]
+
+- name: Follow logs (blocking)
+  command: docker compose --profile all logs -f
+  args:
+    chdir: "{{ project_root }}"
+  when: follow_logs | bool
+  tags: [logs, never]

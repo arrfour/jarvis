@@ -1,0 +1,6 @@
+---
+# Quick playbook for stopping both stacks
+# Usage: ansible-playbook playbooks/stop.yml
+
+- import_playbook: site.yml
+  tags: [stop]

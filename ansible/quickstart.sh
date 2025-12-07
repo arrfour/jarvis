@@ -1,6 +1,9 @@
 #!/bin/bash
 # Quick start script for Ansible setup
 # This script helps new users set up Ansible for the first time
+#
+# Usage: ./quickstart.sh
+# Note: If this script is not executable, run: chmod +x quickstart.sh
 
 set -e
 

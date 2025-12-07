@@ -44,7 +44,7 @@
     that: "'docker' in user_groups.stdout"
     fail_msg: "Current user is not in 'docker' group. Run: sudo usermod -aG docker $USER && newgrp docker"
     success_msg: "User has docker group membership"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Check for required directories
   stat:

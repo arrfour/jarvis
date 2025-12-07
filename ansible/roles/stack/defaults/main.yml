@@ -1,0 +1,20 @@
+---
+# Default variables for stack role
+
+# Production services
+prod_services:
+  - open-webui2
+  - tailscale-sidecar
+  - nginx-prod
+
+# Beta services
+beta_services:
+  - open-webui-beta
+  - tailscale-sidecar-beta
+  - nginx-beta
+
+# Tailscale configuration
+tailscale_prod_container: tailscale-sidecar
+tailscale_beta_container: tailscale-sidecar-beta
+tailscale_prod_port: "127.0.0.1:8080"
+tailscale_beta_port: "127.0.0.1:8081"

@@ -22,17 +22,17 @@
   tags: [start]
 
 - name: Configure Tailscale Serve for production
-  command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+  command: docker exec {{ tailscale_prod_container }} tailscale serve --bg http://{{ tailscale_prod_port }}
   register: tailscale_prod_config
-  changed_when: "'failed' not in tailscale_prod_config.stderr"
+  changed_when: tailscale_prod_config.rc == 0
   failed_when: false
   when: start_result.changed
   tags: [start]
 
 - name: Configure Tailscale Serve for beta
-  command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+  command: docker exec {{ tailscale_beta_container }} tailscale serve --bg http://{{ tailscale_beta_port }}
   register: tailscale_beta_config
-  changed_when: "'failed' not in tailscale_beta_config.stderr"
+  changed_when: tailscale_beta_config.rc == 0
   failed_when: false
   when: start_result.changed
   tags: [start]
@@ -62,9 +62,9 @@
       pause:
         seconds: 3
     - name: Configure Serve
-      command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+      command: docker exec {{ tailscale_prod_container }} tailscale serve --bg http://{{ tailscale_prod_port }}
       register: tailscale_prod_only_config
-      changed_when: "'failed' not in tailscale_prod_only_config.stderr"
+      changed_when: tailscale_prod_only_config.rc == 0
       failed_when: false
   when: start_prod_result.changed
   tags: [start-prod]
@@ -94,9 +94,9 @@
       pause:
         seconds: 3
     - name: Configure Serve
-      command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+      command: docker exec {{ tailscale_beta_container }} tailscale serve --bg http://{{ tailscale_beta_port }}
       register: tailscale_beta_only_config
-      changed_when: "'failed' not in tailscale_beta_only_config.stderr"
+      changed_when: tailscale_beta_only_config.rc == 0
       failed_when: false
   when: start_beta_result.changed
   tags: [start-beta]
@@ -127,7 +127,7 @@
   tags: [stop]
 
 - name: Stop production stack only
-  command: docker compose down open-webui2 tailscale-sidecar nginx-prod
+  command: docker compose down {{ prod_services | join(' ') }}
   args:
     chdir: "{{ project_root }}"
   register: stop_prod_result
@@ -141,7 +141,7 @@
   tags: [stop-prod]
 
 - name: Stop beta stack only
-  command: docker compose down open-webui-beta tailscale-sidecar-beta nginx-beta
+  command: docker compose down {{ beta_services | join(' ') }}
   args:
     chdir: "{{ project_root }}"
   register: stop_beta_result
@@ -173,10 +173,10 @@
       pause:
         seconds: 5
     - name: Reconfigure production Serve
-      command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+      command: docker exec {{ tailscale_prod_container }} tailscale serve --bg http://{{ tailscale_prod_port }}
       failed_when: false
     - name: Reconfigure beta Serve
-      command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+      command: docker exec {{ tailscale_beta_container }} tailscale serve --bg http://{{ tailscale_beta_port }}
       failed_when: false
   when: restart_result.changed
   tags: [restart]
@@ -188,11 +188,11 @@
   tags: [restart]
 
 - name: Restart production stack only
-  command: docker compose restart open-webui2 tailscale-sidecar nginx-prod
+  command: docker compose restart {{ prod_services | join(' ') }}
   args:
     chdir: "{{ project_root }}"
   register: restart_prod_result
-  changed_when: true
+  changed_when: "'Restarted' in restart_prod_result.stderr"
   tags: [restart-prod]
 
 - name: Reconfigure Tailscale Serve for production
@@ -201,7 +201,7 @@
       pause:
         seconds: 3
     - name: Reconfigure Serve
-      command: docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+      command: docker exec {{ tailscale_prod_container }} tailscale serve --bg http://{{ tailscale_prod_port }}
       failed_when: false
   tags: [restart-prod]
 
@@ -211,11 +211,11 @@
   tags: [restart-prod]
 
 - name: Restart beta stack only
-  command: docker compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
+  command: docker compose restart {{ beta_services | join(' ') }}
   args:
     chdir: "{{ project_root }}"
   register: restart_beta_result
-  changed_when: true
+  changed_when: "'Restarted' in restart_beta_result.stderr"
   tags: [restart-beta]
 
 - name: Reconfigure Tailscale Serve for beta
@@ -224,7 +224,7 @@
       pause:
         seconds: 3
     - name: Reconfigure Serve
-      command: docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081
+      command: docker exec {{ tailscale_beta_container }} tailscale serve --bg http://{{ tailscale_beta_port }}
       failed_when: false
   tags: [restart-beta]
 

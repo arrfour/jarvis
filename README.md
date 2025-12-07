@@ -1,276 +1,313 @@
 # Jarvis - Open WebUI on Tailscale
 
-A containerized Open WebUI instance with Ollama support, accessible securely via Tailscale with **automatically-issued valid HTTPS certificates** (no self-signed certificate warnings).
+A dual-stack (production + beta) containerized deployment of **Open WebUI** with **Ollama** support, securely accessible via **Tailscale** with automatically-issued valid HTTPS certificates. No port forwarding. No self-signed warnings. Pure private network security.
 
 ## ✨ Features
 
-- 🤖 **Open WebUI** - Web interface for LLM interactions with Ollama backend
-- 🔐 **Tailscale Network** - Secure, encrypted private network access (no port forwarding needed)
-- ✅ **Valid HTTPS Certificates** - Automatic Tailscale certificates on your Tailnet (zero warnings)
-- 🔄 **Reverse Proxy** - Nginx for routing and future service expansion
-- 📦 **Containerized** - Docker Compose for reproducible deployment
-- 🎯 **Tailnet-Only** - Designed for secure access only via Tailscale
+- 🤖 **Open WebUI** - Modern web interface for LLM chat and interactions
+- 🧠 **Ollama Backend** - Local LLM runtime with persistent models
+- 🔐 **Tailscale Integration** - End-to-end encrypted private network (no port forwarding needed)
+- ✅ **Valid HTTPS Certificates** - Automatic Let's Encrypt certs via Tailscale Serve (zero warnings)
+- 🔄 **Dual-Stack Architecture** - Production and beta environments running independently
+- 🎨 **Visual Differentiation** - Beta marked with red branding for quick identification
+- 📦 **Docker Compose** - Reproducible, version-controlled infrastructure
+- 🛠️ **Easy Management** - Single `manage.sh` script for all operations
+
+## 🏗️ Architecture
+
+```
+jarvis/
+├── docker-compose.yaml          ← Root unified orchestration (both stacks)
+├── manage.sh                    ← All-in-one CLI tool (recommended way to operate)
+│
+├── production/                  ← Production stack (main deployment)
+│   ├── docker-compose.yaml
+│   ├── nginx.conf
+│   ├── .env                     (contains TS_AUTHKEY - gitignored)
+│   └── .env.example             (template for setup)
+│
+├── beta/                        ← Beta stack (testing/development)
+│   ├── docker-compose.yaml
+│   ├── nginx.conf
+│   ├── assets/                  (red favicon + branding)
+│   ├── .env                     (contains TS_AUTHKEY_BETA - gitignored)
+│   └── .env.example             (template for setup)
+│
+└── Documentation/
+    ├── TROUBLESHOOTING.md       ← Common issues and fixes
+    ├── DEVELOPMENT.md           ← Development workflow
+    ├── STACK_MANAGEMENT.md      ← In-depth management guide
+    └── BETA_QUICKSTART.md       ← Daily beta testing workflow
+```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Tailscale account (free at https://tailscale.com)
-- Tailscale auth keys (separate for production and beta)
+- **Docker & Docker Compose** - v2.0+
+- **Tailscale Account** - Free at https://tailscale.com
+- **Tailscale Auth Keys** - Generate 2 (one for prod, one for beta)
+  - Go to: https://login.tailscale.com/admin/settings/keys
+  - Create with **Reusable** + **Ephemeral** options enabled
+  - Auto-approves devices for 90 days
 
-### Structure
+### Initial Setup (5 minutes)
 
-```
-jarvis/
-├── production/          ← Live production stack
-│   ├── docker-compose.yaml
-│   ├── nginx.conf
-│   ├── .env             (add your TS_AUTHKEY here)
-│   └── README.md
-│
-├── beta/                ← Beta/development stack
-│   ├── docker-compose.yaml
-│   ├── nginx.conf
-│   ├── assets/          (red branding)
-│   ├── .env             (add your TS_AUTHKEY_BETA here)
-│   └── README.md
-│
-└── shared/              (future: shared configs)
-```
-
-### Setup (5 minutes)
-
-#### Option A: Unified Commands (Recommended)
-
-Start both stacks with a single command:
-
+**1. Clone or extract the repository**
 ```bash
-# Add auth keys to env files
+cd /path/to/jarvis
+```
+
+**2. Add your Tailscale auth keys**
+```bash
 cp production/.env.example production/.env
 cp beta/.env.example beta/.env
-# Edit both files and add your Tailscale auth keys
 
-# Start both stacks
-docker compose up -d
+# Edit both files with your auth keys
+nano production/.env      # Add TS_AUTHKEY=tskey-auth-xxxxx
+nano beta/.env            # Add TS_AUTHKEY_BETA=tskey-auth-yyyyy
+```
 
-# Or use the helper script
+**3. Start everything**
+```bash
 ./manage.sh start
 ```
 
-#### Option B: Independent Commands
+**4. Access your stacks**
+- **Production:** `https://jarvis.tailcd013.ts.net` (or use your actual Tailnet name)
+- **Beta:** `https://jarvis-beta.tailcd013.ts.net` (red branding)
+- **Local HTTP:** `http://localhost:8080` (prod), `http://localhost:8081` (beta)
 
-Start stacks separately:
+Done! Both stacks are now running.
+
+## 📋 The `manage.sh` Command Reference
+
+The `manage.sh` script is your primary interface for all operations. **This is the recommended way to manage stacks.**
+
+### Start/Stop Commands
 
 ```bash
-# Production only
-cd production && docker compose up -d
-
-# Beta only  
-cd beta && docker compose up -d
+./manage.sh start              # 🚀 Start both production and beta
+./manage.sh start-prod         # 🚀 Start only production
+./manage.sh start-beta         # 🚀 Start only beta
+./manage.sh stop               # 🛑 Stop both stacks
+./manage.sh stop-prod          # 🛑 Stop only production
+./manage.sh stop-beta          # 🛑 Stop only beta
 ```
 
-### Quick Commands
+### Restart Commands
+
+## 🎯 Real-World Workflows
+
+### Scenario 1: Testing a Feature in Beta
+
+1. Code changes go to `develop` branch
+2. Deploy to beta stack: `./manage.sh start-beta`
+3. Test at `https://jarvis-beta.tailcd013.ts.net` (red branding = you know it's beta)
+4. Review changes: `git diff main develop`
+5. Merge to main when ready: Create PR or `git merge develop`
+6. Deploy to prod: `./manage.sh restart-prod`
+
+### Scenario 2: Emergency Rollback
 
 ```bash
-# Using root docker-compose (from project root)
-docker compose up -d                    # Start both stacks
-docker compose ps                       # View all containers
-docker compose restart                  # Restart both stacks
-docker compose down                     # Stop both stacks
+# View all versions
+git tag -l | sort -V
 
-# Using helper script (from project root)
-./manage.sh start                       # Start both
-./manage.sh restart-beta                # Restart only beta
-./manage.sh logs-prod                   # View production logs
-./manage.sh help                        # Show all commands
+# Rollback to specific version
+git checkout v2025.12.6.002
+./manage.sh start-prod
 
-# Using individual compose files
-cd production && docker compose up -d   # Start production
-cd beta && docker compose up -d         # Start beta
-# Using individual compose files
-cd production && docker compose up -d   # Start production
-cd beta && docker compose up -d         # Start beta
-cd beta && docker compose restart       # Restart only beta
+# Or return to current
+git checkout main
+./manage.sh start-prod
 ```
 
-## 🔐 Access Your Stacks
+### Scenario 3: Updating Ollama Models
 
-### Production
-- **URL:** `https://jarvis.tailcd013.ts.net`
-- **Setup:** Run from `production/` directory
+```bash
+# Connect to Ollama in production
+docker exec -it ollama ollama list          # See installed models
+docker exec -it ollama ollama pull llama2   # Download new model
 
-### Beta
-- **URL:** `https://jarvis-beta.tailcd013.ts.net`
-- **Visual Indicator:** Red branding (favicon + logo)
-- **Setup:** Run from `beta/` directory
+# Same for beta
+docker exec -it ollama-beta ollama pull mistral
+```
 
-## 🔐 Tailscale Auth Keys
+## 🌍 Access from Outside Your Machine
 
-Generate two auth keys at https://login.tailscale.com/admin/settings/keys:
+Since everything runs on Tailscale, you can access it from **any device on your Tailnet**:
 
-1. **Production key** → `production/.env` as `TS_AUTHKEY`
-2. **Beta key** → `beta/.env` as `TS_AUTHKEY_BETA`
-
-Both should have ✓ Reusable and ✓ Ephemeral flags checked.
-
-2. **Generate Tailscale Auth Key**
-   - Go to https://login.tailscale.com/admin/settings/keys
-   - Create new Auth Key
-   - ✓ Check "Reusable"
-   - ✓ Check "Ephemeral"
-   - Copy the key
-
-3. **Create `.env` file**
+1. **From another Linux box:**
    ```bash
-   cp .env.example .env
-   # Edit .env and paste your Tailscale auth key
-   nano .env
+   curl https://jarvis.tailcd013.ts.net
    ```
 
-4. **Start the stack**
-   ```bash
-   docker compose up -d
-   ```
+2. **From Windows/Mac with Tailscale installed:**
+   - Open browser: `https://jarvis.tailcd013.ts.net`
+   - Works exactly like localhost but encrypted end-to-end
 
-5. **Approve device in Tailscale**
-   - Go to https://login.tailscale.com/admin/machines
-   - Find and approve the `jarvis` device
+3. **From mobile (iOS/Android Tailscale app):**
+   - Install Tailscale app
+   - Enable "Allow incoming connections"
+   - Same FQDN works
 
-6. **Access Open WebUI**
-   ```
-   https://jarvis.tailcd013.ts.net
-   ```
-   (Replace `tailcd013` with your Tailnet domain)
-## 📐 Architecture
+## 🐳 Docker Compose Profiles Explained
 
-```
-Your Device on Tailnet
-       ↓
-Tailscale Serve (provides HTTPS with valid certificates)
-       ↓
-Tailscale Sidecar Container (host network)
-       ↓
-Nginx Reverse Proxy (127.0.0.1:8080 HTTP)
-       ↓
-Open WebUI Container (internal Docker network)
-       ↓
-Ollama (local LLM backend)
-```
-
-**Key Points:**
-- ✅ **No certificate warnings** - Tailscale issues valid certs automatically
-- 🔒 **Encrypted end-to-end** - HTTPS from browser to Tailscale Serve
-- 🚀 **Simple setup** - Tailscale handles all HTTPS complexity
-- 🎯 **Tailnet-only** - No exposure to the public internetama (local LLM backend)
-```
-
-## 📁 Project Structure
-
-```
-jarvis/
-├── .env.example          # Template for environment variables (copy to .env)
-├── .gitignore           # Excludes secrets, certs, volumes
-├── README.md            # This file
-├── compose.yaml         # Docker Compose configuration
-├── nginx.conf           # Nginx reverse proxy config
-├── certs/               # SSL certificates (auto-generated, not in git)
-└── .git/                # Version control
-```
-
-## 🔌 Access Points
-
-| URL | Purpose | Certificate |
-|-----|---------|-------------|
-| `https://jarvis.tailcd013.ts.net` | Primary access via Tailscale | ✅ Valid (auto-issued) |
-| `https://100.x.x.x:8443` | Direct IP (not recommended) | ⚠️ Self-signed |
-| `https://127.0.0.1:8443` | Local access (host machine) | ⚠️ Self-signed |
-
-**Recommended:** Always use the Tailnet FQDN (`jarvis.tailcd013.ts.net`) for valid certificates and zero warnings.
-
-Replace `tailcd013` with your actual Tailnet domain.
-
-## 🛠️ Configuration
-
-### Environment Variables (`.env`)
+The root `docker-compose.yaml` uses **profiles** to run multiple stacks:
 
 ```bash
-TS_AUTHKEY=tskey-api-YOUR_KEY_HERE
+# Start both (prod + beta)
+docker-compose --profile all up -d
+
+# Start only production
+docker-compose --profile prod up -d
+
+# Start only beta
+docker-compose --profile beta up -d
 ```
 
-Generate at: https://login.tailscale.com/admin/settings/keys
+**Why profiles?** Allows one file to manage multiple independent stacks without conflicts.
 
-### Certificates
+Use `manage.sh` to avoid remembering these flags.
 
-**No manual certificate management needed!**
+## 🔄 Environment Variables
 
-Tailscale automatically issues and renews valid HTTPS certificates for your device on your Tailnet. Certificates are managed entirely by Tailscale and require zero configuration.
-
-## 📦 Services
-
-### Open WebUI Container
-- **Image**: `ghcr.io/open-webui/open-webui:Latest`
-- **Port**: 8080 (internal, not exposed)
-- **GPU**: Enabled (remove `gpus: all` if not needed)
-- **Volumes**: 
-  - `ollama` - LLM model cache
-  - `open-webui` - Application data
-
-### Nginx Reverse Proxy
-### Nginx Reverse Proxy
-- **Image**: `nginx:alpine`
-- **Ports**: 127.0.0.1:8080 (HTTP only)
-- **Config**: `./nginx.conf`
-- **SSL**: Handled by Tailscale Serve (no local certificates)
-### Tailscale Sidecar
-- **Image**: `tailscale/tailscale:latest`
-- **Hostname**: `jarvis`
-- **Network**: Host network (for Serve functionality)
-- **Auth**: Uses `TS_AUTHKEY` from `.env`
-
-## 🔧 Maintenance
-
-### View Logs
+### Production (`.env` in `production/` directory)
 ```bash
-docker compose logs -f nginx
-docker compose logs -f open-webui2
-docker compose logs -f tailscale-sidecar
+TS_AUTHKEY=tskey-auth-xxxxxxxxx    # Tailscale auth key for prod
 ```
 
-### Restart Services
+### Beta (`.env` in `beta/` directory)
 ```bash
-docker compose restart nginx          # Restart Nginx
-docker compose restart open-webui2    # Restart Open WebUI
-docker compose restart               # Restart all
+TS_AUTHKEY_BETA=tskey-auth-yyyyy    # Tailscale auth key for beta
 ```
 
-### Regenerate SSL Certificates
+Both are **gitignored** (never committed). Template versions (`.env.example`) are in git for reference.
 
-**Not needed anymore!** Tailscale handles all certificate issuance and renewal automatically. Your Tailnet domain certificates are managed by Tailscale and updated without any manual intervention.
+## 📚 Documentation
 
-If you absolutely need to reset Tailscale:
+**New to this setup?** Start here:
+- [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md) - Common issues and fixes
+- [`DEVELOPMENT.md`](./DEVELOPMENT.md) - Development workflow and git practices
+- [`STACK_MANAGEMENT.md`](./STACK_MANAGEMENT.md) - Deep dive into manual operations
+- [`BETA_QUICKSTART.md`](./BETA_QUICKSTART.md) - Daily beta testing checklist
+
+## 🆘 Troubleshooting
+
+### HTTPS not working?
+See [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md#https-access-not-working)
+
+### Containers won't start?
 ```bash
-docker compose exec tailscale-sidecar tailscale logout
-docker compose restart tailscale-sidecar
-# Then approve device again in Tailscale Admin
-docker compose exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080
+./manage.sh logs      # Check all logs
+./manage.sh status    # Check container status
 ```
 
-### Update Images
+### Models not persisting?
+Check volume mounts:
 ```bash
-docker compose pull
-docker compose up -d
+docker volume ls | grep jarvis
+docker volume inspect jarvis_ollama
 ```
 
-### Stop Everything
+### Serve configuration lost after restart?
+Restart handles this automatically:
 ```bash
-docker compose down
+./manage.sh restart-prod
 ```
 
-Remove volumes too (WARNING: deletes data):
+## 🛠️ Manual Docker Commands (Advanced)
+
+For power users who want direct control:
+
 ```bash
-docker compose down -v
+# Direct Compose commands (from root directory)
+docker-compose --profile prod config          # Show prod config
+docker-compose --profile prod logs -f         # Follow prod logs
+docker-compose --profile prod restart         # Restart prod
+
+# Direct service access
+docker exec open-webui2 bash                  # Shell into production Open WebUI
+docker exec tailscale-sidecar tailscale status   # Check Tailscale status
 ```
+
+## 📊 Monitoring
+
+### Check stack health
+```bash
+./manage.sh status
+```
+
+### View real-time logs
+```bash
+./manage.sh logs          # All
+./manage.sh logs-prod     # Production only
+./manage.sh logs-beta     # Beta only
+```
+
+### Validate configuration
+```bash
+./manage.sh validate
+```
+
+This checks syntax without starting containers.
+
+## 🚀 Performance Tips
+
+1. **GPU Support**: Both stacks have `gpus: all` enabled. Works on NVIDIA only.
+   - Remove from `docker-compose.yaml` if you don't have GPU
+
+2. **Model Management**: Ollama models stored in persistent volumes
+   - Production models: `docker volume inspect jarvis_ollama`
+   - Beta models: `docker volume inspect jarvis_ollama-beta`
+
+3. **Memory**: Open WebUI + Ollama can be resource-intensive
+   - Monitor with: `docker stats`
+
+## 🔐 Security Notes
+
+- ✅ All traffic encrypted (Tailscale VPN + Tailscale Serve HTTPS)
+- ✅ No port forwarding needed
+- ✅ Valid certificates (no self-signed warnings)
+- ✅ Auth keys expire and auto-approve (90 days)
+- ✅ Tailnet-only access (private network)
+
+**Best Practices:**
+1. Regenerate auth keys periodically
+2. Keep Tailscale updated: `tailscale update`
+3. Review connected devices: https://login.tailscale.com/admin/machines
+4. Use separate keys for prod and beta
+
+## 📝 Version Control
+
+This repo tracks:
+- ✅ Configuration files (docker-compose.yaml, nginx.conf)
+- ✅ Deployment scripts (manage.sh)
+- ✅ Documentation
+- ❌ `.env` files (gitignored - contains secrets)
+- ❌ Volumes/data (handled by Docker)
+
+### Current Release
+- **Version**: v2025.12.6.003 (tagged in git)
+- **Branch**: `main` (production-stable)
+- **Development**: `develop` branch
+
+View all releases: `git tag -l | sort -V`
+
+## 🎓 Learning Resources
+
+- [Tailscale Documentation](https://tailscale.com/docs/)
+- [Docker Compose Documentation](https://docs.docker.com/compose/)
+- [Open WebUI GitHub](https://github.com/open-webui/open-webui)
+- [Ollama Documentation](https://ollama.ai)
+
+## 📞 Support
+
+Having issues?
+1. Check [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md)
+2. Run `./manage.sh logs` to see what's happening
+3. Search GitHub issues: https://github.com/open-webui/open-webui/issues
 
 ## 🆘 Troubleshooting
 

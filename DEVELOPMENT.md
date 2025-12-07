@@ -28,14 +28,14 @@ jarvis/
 ```bash
 cd production
 docker compose up -d
-# Access: https://jarvis.tailcd013.ts.net
+# Access: https://jarvis.YOUR_TAILNET.ts.net
 ```
 
 ### Beta Stack (for testing new features)
 ```bash
 cd beta
 docker compose up -d
-# Access: https://jarvis-beta.tailcd013.ts.net
+# Access: https://jarvis-beta.YOUR_TAILNET.ts.net
 ```
 
 ### Unified Commands (from project root)
@@ -110,7 +110,7 @@ cd production && docker compose down
 
 ### What You'll See
 
-When you access the beta instance at `https://jarvis-beta.tailcd013.ts.net`:
+When you access the beta instance at `https://jarvis-beta.YOUR_TAILNET.ts.net`:
 
 1. **Browser tab**: Shows **red favicon with β symbol** (vs normal icon in production)
 2. **App logo**: **Red "BETA" logo** (vs production logo in production)
@@ -144,7 +144,7 @@ The beta stack uses a **persistent volume** for the Open WebUI data. This means:
 ### One-Time Setup: Create Default Beta Admin
 
 1. **Access the beta instance:**
-   - Go to https://jarvis-beta.tailcd013.ts.net
+   - Go to https://jarvis-beta.YOUR_TAILNET.ts.net
    - You'll see "Create Admin Account" prompt
 
 2. **Create admin (first time only):**
@@ -257,8 +257,8 @@ develop (beta/development work)
 
 | Stack | Containers | Ports | Tailscale Domain |
 |-------|-----------|-------|-----------------|
-| **Production** | `nginx-proxy`, `open-webui2`, `tailscale-sidecar` | 8080, 8443 | `jarvis.tailcd013.ts.net` |
-| **Beta** | `nginx-beta`, `open-webui-beta`, `tailscale-sidecar-beta` | 8081 | `jarvis-beta.tailcd013.ts.net` |
+| **Production** | `nginx-proxy`, `open-webui2`, `tailscale-sidecar` | 8080, 8443 | `jarvis.YOUR_TAILNET.ts.net` |
+| **Beta** | `nginx-beta`, `open-webui-beta`, `tailscale-sidecar-beta` | 8081 | `jarvis-beta.YOUR_TAILNET.ts.net` |
 
 ## Key Points
 
@@ -295,8 +295,8 @@ git push origin develop
 **Q: How do I switch between testing production vs beta?**
 ```bash
 # Test production
-curl https://jarvis.tailcd013.ts.net -k
+curl https://jarvis.YOUR_TAILNET.ts.net -k
 
 # Test beta
-curl https://jarvis-beta.tailcd013.ts.net -k
+curl https://jarvis-beta.YOUR_TAILNET.ts.net -k
 ```

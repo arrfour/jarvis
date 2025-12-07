@@ -141,7 +141,7 @@ docker exec tailscale-sidecar tailscale serve status
 
 ```bash
 # From any device on your Tailnet
-curl https://jarvis.tailcd013.ts.net
+curl https://jarvis.YOUR_TAILNET.ts.net
 
 # Or via Tailscale IP if FQDN doesn't work yet
 curl http://100.85.172.20:8080
@@ -379,8 +379,8 @@ git push origin "server-deployment-$(hostname)-$(date +%Y%m%d)"
 Before considering migration complete:
 
 - [ ] Both stacks start without errors: `./manage.sh start`
-- [ ] Production accessible via HTTPS FQDN: `https://jarvis.tailcd013.ts.net`
-- [ ] Beta accessible: `https://jarvis-beta.tailcd013.ts.net`
+- [ ] Production accessible via HTTPS FQDN: `https://jarvis.YOUR_TAILNET.ts.net`
+- [ ] Beta accessible: `https://jarvis-beta.YOUR_TAILNET.ts.net`
 - [ ] Both accessible from other Tailnet devices
 - [ ] Logs clean: `./manage.sh logs` shows no errors
 - [ ] Models persist across restart: `./manage.sh restart-prod`

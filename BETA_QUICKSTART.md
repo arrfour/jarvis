@@ -19,7 +19,7 @@
    ```
 
 4. **Create admin account** (first access only):
-   - Go to https://jarvis-beta.tailcd013.ts.net
+   - Go to https://jarvis-beta.YOUR_TAILNET.ts.net
    - Set username/password (persists across restarts!)
    - This admin account is now reusable for all beta development
 
@@ -28,13 +28,13 @@
 ### Test Production (unchanged)
 ```bash
 # Production keeps running normally
-https://jarvis.tailcd013.ts.net
+https://jarvis.YOUR_TAILNET.ts.net
 ```
 
 ### Test Beta (new features)
 ```bash
 # Beta runs in parallel - RED UI indicates beta version
-https://jarvis-beta.tailcd013.ts.net
+https://jarvis-beta.YOUR_TAILNET.ts.net
 # Look for: Red favicon (β), red "BETA" logo
 ```
 

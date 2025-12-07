@@ -74,8 +74,8 @@ nano beta/.env            # Add TS_AUTHKEY_BETA=tskey-auth-yyyyy
 ```
 
 **4. Access your stacks**
-- **Production:** `https://jarvis.tailcd013.ts.net` (or use your actual Tailnet name)
-- **Beta:** `https://jarvis-beta.tailcd013.ts.net` (red branding)
+- **Production:** `https://jarvis.YOUR_TAILNET.ts.net` (replace `YOUR_TAILNET` with your actual Tailnet name)
+- **Beta:** `https://jarvis-beta.YOUR_TAILNET.ts.net` (red branding)
 - **Local HTTP:** `http://localhost:8080` (prod), `http://localhost:8081` (beta)
 
 Done! Both stacks are now running.
@@ -134,7 +134,7 @@ See [ansible/README.md](ansible/README.md) for full Ansible documentation.
 
 1. Code changes go to `develop` branch
 2. Deploy to beta stack: `./manage.sh start-beta`
-3. Test at `https://jarvis-beta.tailcd013.ts.net` (red branding = you know it's beta)
+3. Test at `https://jarvis-beta.YOUR_TAILNET.ts.net` (red branding = you know it's beta)
 4. Review changes: `git diff main develop`
 5. Merge to main when ready: Create PR or `git merge develop`
 6. Deploy to prod: `./manage.sh restart-prod`
@@ -171,11 +171,11 @@ Since everything runs on Tailscale, you can access it from **any device on your 
 
 1. **From another Linux box:**
    ```bash
-   curl https://jarvis.tailcd013.ts.net
+   curl https://jarvis.YOUR_TAILNET.ts.net
    ```
 
 2. **From Windows/Mac with Tailscale installed:**
-   - Open browser: `https://jarvis.tailcd013.ts.net`
+   - Open browser: `https://jarvis.YOUR_TAILNET.ts.net`
    - Works exactly like localhost but encrypted end-to-end
 
 3. **From mobile (iOS/Android Tailscale app):**
@@ -349,7 +349,7 @@ Having issues?
 - Check Tailscale logs: `docker compose logs tailscale-sidecar`
 - Wait a few seconds and refresh the admin panel
 
-### Can't connect to `jarvis.tailcd013.ts.net`
+### Can't connect to `jarvis.YOUR_TAILNET.ts.net`
 - Try the direct IP: `https://100.x.x.x:8443`
 - Verify device is approved in Tailscale admin
 - Clear browser cookies and try again
@@ -364,7 +364,7 @@ Having issues?
 - View Nginx logs: `docker compose logs nginx`
 ### SSL Certificate Warnings
 
-**There should be none!** Tailscale provides valid HTTPS certificates automatically on your Tailnet domain. Access `https://jarvis.tailcd013.ts.net` and your browser should trust the certificate immediately.
+**There should be none!** Tailscale provides valid HTTPS certificates automatically on your Tailnet domain. Access `https://jarvis.YOUR_TAILNET.ts.net` and your browser should trust the certificate immediately.
 - Click "Advanced" → "Proceed" in your browser
 - To avoid warnings, use a valid certificate from Let's Encrypt (requires public domain)
 

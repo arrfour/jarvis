@@ -13,7 +13,7 @@ docker compose up -d
 
 ## Access
 
-- **URL:** `https://jarvis.tailcd013.ts.net`
+- **URL:** `https://jarvis.YOUR_TAILNET.ts.net` (replace `YOUR_TAILNET` with your actual Tailnet name)
 - **Status:** Check with `docker compose ps`
 
 ## Volumes

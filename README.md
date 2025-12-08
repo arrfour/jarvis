@@ -11,34 +11,82 @@ A dual-stack (production + beta) containerized deployment of **Open WebUI** with
 - 🔄 **Dual-Stack Architecture** - Production and beta environments running independently
 - 🎨 **Visual Differentiation** - Beta marked with red branding for quick identification
 - 📦 **Docker Compose** - Reproducible, version-controlled infrastructure
-- 🛠️ **Easy Management** - Single `manage.sh` script for all operations
+- 🛠️ **Easy Management** - Bash `manage.sh` script OR Ansible automation for enterprise deployments
+- 🚀 **Ansible Automation** - One-command deployment to remote Linux servers with `make deploy`
 
 ## 🏗️ Architecture
 
 ```
 jarvis/
-├── docker-compose.yaml          ← Root unified orchestration (both stacks)
-├── manage.sh                    ← All-in-one CLI tool (recommended way to operate)
+├── 📋 Configuration & Management
+│   ├── docker-compose.yaml          ← Root unified orchestration (both stacks)
+│   ├── manage.sh                    ← Bash CLI tool (legacy, still supported)
+│   ├── .env                         ← Root environment template
+│   ├── .gitignore                   ← Secrets protection
+│   └── certs/                       ← SSL certificates (auto-generated)
 │
-├── production/                  ← Production stack (main deployment)
-│   ├── docker-compose.yaml
-│   ├── nginx.conf
-│   ├── .env                     (contains TS_AUTHKEY - gitignored)
-│   └── .env.example             (template for setup)
+├── 🤖 Ansible Automation (Recommended for deployments)
+│   ├── ansible/
+│   │   ├── README.md                ← Ansible setup and usage guide
+│   │   ├── IMPLEMENTATION.md        ← Technical implementation details
+│   │   ├── Makefile                 ← Easy command interface (make deploy, etc.)
+│   │   ├── quickstart.sh            ← One-command deployment script
+│   │   ├── requirements.yml         ← Ansible dependencies
+│   │   ├── ansible.cfg              ← Ansible configuration
+│   │   ├── inventory/
+│   │   │   └── hosts.yml            ← Target hosts configuration
+│   │   ├── playbooks/
+│   │   │   ├── site.yml             ← Master playbook (calls all roles)
+│   │   │   ├── start.yml            ← Start stacks
+│   │   │   ├── stop.yml             ← Stop stacks
+│   │   │   ├── restart.yml          ← Restart stacks
+│   │   │   └── status.yml           ← Check stack status
+│   │   └── roles/
+│   │       ├── setup/               ← Install Docker, Tailscale dependencies
+│   │       ├── environment/         ← Configure .env files
+│   │       └── stack/               ← Deploy and manage stacks
+│   │
+│   └── ANSIBLE_MIGRATION.md         ← Guide for adopting Ansible workflow
 │
-├── beta/                        ← Beta stack (testing/development)
-│   ├── docker-compose.yaml
-│   ├── nginx.conf
-│   ├── assets/                  (red favicon + branding)
-│   ├── .env                     (contains TS_AUTHKEY_BETA - gitignored)
-│   └── .env.example             (template for setup)
+├── 🐳 Docker Stack Configurations
+│   ├── production/                  ← Production stack (main deployment)
+│   │   ├── docker-compose.yaml      ← Compose file for production
+│   │   ├── nginx.conf               ← Nginx reverse proxy config
+│   │   ├── README.md                ← Production-specific docs
+│   │   ├── .env                     ← Production auth key (gitignored)
+│   │   └── .env.example             ← Template for setup
+│   │
+│   ├── beta/                        ← Beta stack (testing/development)
+│   │   ├── docker-compose.yaml      ← Compose file for beta
+│   │   ├── nginx.conf               ← Nginx reverse proxy config
+│   │   ├── README.md                ← Beta-specific docs
+│   │   ├── assets/                  ← Red branding (favicon + logo)
+│   │   ├── .env                     ← Beta auth key (gitignored)
+│   │   └── .env.example             ← Template for setup
+│   │
+│   └── shared/                      ← Shared resources (future use)
 │
-└── Documentation/
-    ├── TROUBLESHOOTING.md       ← Common issues and fixes
-    ├── DEVELOPMENT.md           ← Development workflow
-    ├── STACK_MANAGEMENT.md      ← In-depth management guide
-    └── BETA_QUICKSTART.md       ← Daily beta testing workflow
+└── 📚 Documentation
+    ├── README.md                    ← Main overview (you are here!)
+    ├── DEPLOYMENT.md                ← Portability & Linux server deployment
+    ├── TROUBLESHOOTING.md           ← Common issues and fixes
+    ├── DEVELOPMENT.md               ← Development workflow & git practices
+    ├── STACK_MANAGEMENT.md          ← Deep dive into manual operations
+    ├── BETA_QUICKSTART.md           ← Daily beta testing checklist
+    └── ANSIBLE_MIGRATION.md         ← Migration from bash to Ansible
 ```
+
+### 🎯 Quick Navigation
+
+| Need to... | Start here |
+|-----------|-----------|
+| **Deploy to new server** | `ansible/README.md` → `bash quickstart.sh` |
+| **Manage locally (WSL/Linux)** | `./manage.sh help` (bash CLI) |
+| **Troubleshoot issues** | `TROUBLESHOOTING.md` |
+| **Develop new features** | `DEVELOPMENT.md` |
+| **Deploy production** | `DEPLOYMENT.md` or `ansible/Makefile` |
+| **Understand architecture** | This section + `ANSIBLE_MIGRATION.md` |
+| **Run beta tests** | `BETA_QUICKSTART.md` |
 
 ## 🚀 Quick Start
 
@@ -218,13 +266,21 @@ Both are **gitignored** (never committed). Template versions (`.env.example`) ar
 
 ## 📚 Documentation
 
-**New to this setup?** Start here:
-- [`README.md`](./README.md) - **Start here** - Overview and quick start (you're reading it)
-- [`DEPLOYMENT.md`](./DEPLOYMENT.md) - **Deploy to Linux server** - Portability guide and migration from WSL
-- [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md) - Common issues and fixes
+**Choose your path:**
+
+### 🚀 New Deployments (Recommended: Ansible)
+- [`ansible/README.md`](./ansible/README.md) - **Deploy to remote Linux servers** - Ansible automation guide
+- [`ANSIBLE_MIGRATION.md`](./ANSIBLE_MIGRATION.md) - Migration guide from bash to Ansible
+
+### 💻 Local Development (Bash CLI)
+- [`README.md`](./README.md) - **Overview and quick start** (you're reading it)
 - [`DEVELOPMENT.md`](./DEVELOPMENT.md) - Development workflow and git practices
-- [`STACK_MANAGEMENT.md`](./STACK_MANAGEMENT.md) - Deep dive into manual operations
 - [`BETA_QUICKSTART.md`](./BETA_QUICKSTART.md) - Daily beta testing checklist
+
+### 📖 Reference & Operations
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md) - Portability guide and manual Linux deployment
+- [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md) - Common issues and fixes
+- [`STACK_MANAGEMENT.md`](./STACK_MANAGEMENT.md) - Deep dive into manual Docker operations
 
 ## 🆘 Troubleshooting
 

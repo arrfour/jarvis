@@ -6,7 +6,10 @@ services:
   open-webui-beta:
     image: ghcr.io/open-webui/open-webui:Latest
     container_name: open-webui-beta
-    gpus: all
+      gpus:
+        - driver: nvidia
+          count: all
+          capabilities: ["gpu"]
     volumes:
       - ollama-beta:/root/.ollama
       - open-webui-beta:/app/backend/data

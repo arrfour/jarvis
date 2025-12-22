@@ -5,7 +5,11 @@ services:
     image: ghcr.io/open-webui/open-webui:Latest
     container_name: open-webui2
     # Removed external port—only Nginx accesses it
-    gpus: all
+      gpus:
+        - driver: nvidia
+          count: all
+          capabilities: ["gpu"]
+
     volumes:
       - ollama:/root/.ollama
       - open-webui:/app/backend/data

@@ -1,21 +1,62 @@
 #!/bin/bash
 # Jarvis Stack Manager - Easy commands to manage production and beta stacks
+# 
+# Usage: ./manage.sh [command] [--cpu]
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Load environment variables from both production and beta
+# Load environment variables
 export $(cat "$SCRIPT_DIR/production/.env" 2>/dev/null | grep -v '^#' | xargs)
 export $(cat "$SCRIPT_DIR/beta/.env" 2>/dev/null | grep -v '^#' | xargs)
 
+# Global Configuration
+COMPOSE_FILES="-f docker-compose.yaml"
+
+# Helper Functions
+function detect_hardware() {
+    # Check for --cpu override
+    for arg in "$@"; do
+        if [ "$arg" == "--cpu" ]; then
+            echo "ℹ️  CPU mode forced by user request."
+            return
+        fi
+    done
+
+    # NVIDIA Check
+    if command -v nvidia-smi &> /dev/null || [ -e /dev/nvidia0 ]; then
+        echo "✅ NVIDIA GPU detected. Using NVIDIA configuration."
+        COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.nvidia.yaml"
+        return
+    fi
+
+    # AMD Check
+    if [ -e /dev/kfd ]; then
+        echo "✅ AMD GPU detected. Using AMD configuration."
+        COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.amd.yaml"
+        return
+    fi
+
+    echo "⚠️  No GPU detected. Falling back to CPU mode. Performance may be degraded."
+}
+
+function run_compose() {
+    # echo "DEBUG: Running docker-compose $COMPOSE_FILES $@"
+    docker-compose $COMPOSE_FILES "$@"
+}
+
+# Run detection
+detect_hardware "$@"
+
+# Command Handling
 case "$1" in
   start|up)
     echo "🚀 Starting both production and beta stacks..."
-    docker-compose --profile all up -d
+    run_compose --profile all up -d
     echo "✅ Both stacks running!"
     echo ""
-    docker-compose --profile all ps
+    run_compose --profile all ps
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 5
@@ -27,31 +68,35 @@ case "$1" in
 
   start-prod|up-prod)
     echo "🚀 Starting production stack only..."
-    docker-compose --profile prod up -d
+    run_compose --profile prod up -d
     echo "✅ Production stack running!"
     ;;
 
   start-beta|up-beta)
     echo "🚀 Starting beta stack only..."
-    docker-compose --profile beta up -d
+    run_compose --profile beta up -d
     echo "✅ Beta stack running!"
     ;;
 
   stop|down)
     echo "🛑 Stopping both stacks..."
-    docker-compose --profile all down
+    run_compose --profile all down
     echo "✅ Both stacks stopped!"
     ;;
 
   stop-prod|down-prod)
     echo "🛑 Stopping production stack..."
-    docker-compose down open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || docker-compose stop open-webui2 tailscale-sidecar nginx-prod
+    # We use stop/rm here to target specific containers without needing profile flags if possible, 
+    # taking advantage of compose knowing the services.
+    run_compose stop open-webui2 tailscale-sidecar nginx-prod
+    run_compose rm -f open-webui2 tailscale-sidecar nginx-prod
     echo "✅ Production stack stopped!"
     ;;
 
   stop-beta|down-beta)
     echo "🛑 Stopping beta stack..."
-    docker-compose down open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || docker-compose stop open-webui-beta tailscale-sidecar-beta nginx-beta
+    run_compose stop open-webui-beta tailscale-sidecar-beta nginx-beta
+    run_compose rm -f open-webui-beta tailscale-sidecar-beta nginx-beta
     echo "✅ Beta stack stopped!"
     ;;
 
@@ -61,7 +106,7 @@ case "$1" in
     read -p "Type 'yes' to confirm: " confirm
     if [ "$confirm" = "yes" ]; then
       echo "💣 Nuking both stacks and volumes..."
-      docker-compose --profile all down -v
+      run_compose --profile all down -v
       echo "✅ Both stacks and all volumes destroyed!"
       echo "⚠️  All data is permanently gone. Run './manage.sh start' to recreate fresh."
     else
@@ -76,7 +121,8 @@ case "$1" in
     if [ "$confirm" = "yes" ]; then
       echo "💣 Nuking production stack and volumes..."
       docker volume rm jarvis_ollama jarvis_open-webui jarvis_tailscale-sidecar-state 2>/dev/null || true
-      docker-compose stop open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true
+      run_compose stop open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true
+      run_compose rm -f open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true
       echo "✅ Production stack and volumes destroyed!"
       echo "⚠️  Production data is permanently gone. Run './manage.sh start-prod' to recreate fresh."
     else
@@ -91,7 +137,8 @@ case "$1" in
     if [ "$confirm" = "yes" ]; then
       echo "💣 Nuking beta stack and volumes..."
       docker volume rm jarvis_ollama-beta jarvis_open-webui-beta jarvis_tailscale-sidecar-beta-state 2>/dev/null || true
-      docker-compose stop open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true
+      run_compose stop open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true
+      run_compose rm -f open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true
       echo "✅ Beta stack and volumes destroyed!"
       echo "⚠️  Beta data is permanently gone. Run './manage.sh start-beta' to recreate fresh."
     else
@@ -101,7 +148,7 @@ case "$1" in
 
   restart)
     echo "🔄 Restarting both stacks..."
-    docker-compose --profile all restart
+    run_compose --profile all restart
     echo "✅ Both stacks restarted!"
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
@@ -114,7 +161,7 @@ case "$1" in
 
   restart-prod)
     echo "🔄 Restarting production stack..."
-    docker-compose restart open-webui2 tailscale-sidecar nginx-prod
+    run_compose restart open-webui2 tailscale-sidecar nginx-prod
     echo "✅ Production stack restarted!"
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
@@ -126,7 +173,7 @@ case "$1" in
 
   restart-beta)
     echo "🔄 Restarting beta stack..."
-    docker-compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
+    run_compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
     echo "✅ Beta stack restarted!"
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
@@ -138,32 +185,32 @@ case "$1" in
 
   status|ps)
     echo "📊 Stack Status:"
-    docker-compose --profile all ps
+    run_compose --profile all ps
     ;;
 
   logs)
     echo "📋 Logs (all stacks) - Press Ctrl+C to exit"
-    docker-compose --profile all logs -f
+    run_compose --profile all logs -f
     ;;
 
   logs-prod)
     echo "📋 Production logs - Press Ctrl+C to exit"
-    docker-compose logs -f open-webui2 tailscale-sidecar nginx-prod
+    run_compose logs -f open-webui2 tailscale-sidecar nginx-prod
     ;;
 
   logs-beta)
     echo "📋 Beta logs - Press Ctrl+C to exit"
-    docker-compose logs -f open-webui-beta tailscale-sidecar-beta nginx-beta
+    run_compose logs -f open-webui-beta tailscale-sidecar-beta nginx-beta
     ;;
 
   config)
     echo "📝 Docker Compose Configuration:"
-    docker-compose --profile all config
+    run_compose --profile all config
     ;;
 
   validate)
     echo "✓ Validating docker-compose.yaml..."
-    docker-compose --profile all config > /dev/null
+    run_compose --profile all config > /dev/null
     echo "✅ Configuration is valid!"
     ;;
 
@@ -171,7 +218,7 @@ case "$1" in
     cat << EOF
 Jarvis Stack Manager
 
-Usage: ./manage.sh <command>
+Usage: ./manage.sh <command> [--cpu]
 
 Start/Stop Commands:
   start, up                 Start both production and beta stacks
@@ -202,17 +249,16 @@ View Commands:
   config                    Show merged docker-compose configuration
   validate                  Validate docker-compose.yaml syntax
 
+Flags:
+  --cpu                     Force CPU-only mode (ignore GPU even if present)
+
 Other:
   help, --help, -h          Show this help message
 
 Examples:
-  ./manage.sh start           # Start both stacks
-  ./manage.sh stop            # Stop both stacks
-  ./manage.sh restart-beta    # Restart only beta stack
-  ./manage.sh logs-prod       # View production logs
-  ./manage.sh status          # Check status of all containers
-  ./manage.sh nuke-beta       # Delete all beta data (asks for confirmation)
-
+  ./manage.sh start           # Start both stacks (auto-detect GPU)
+  ./manage.sh start --cpu     # Start both stacks in CPU mode
+  ./manage.sh config          # See the generated GPU/CPU config
 EOF
     ;;
 

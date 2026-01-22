@@ -13,18 +13,21 @@ services:
   # PRODUCTION STACK
   # ============================================
   open-webui2:
-    image: ghcr.io/open-webui/open-webui:Latest
+    image: ghcr.io/open-webui/open-webui:v0.7.2-ollama
     container_name: open-webui2
-    gpus:
-        - driver: nvidia
-          count: all
-          capabilities: ["gpu"]
+    ports:
+      - "11434:11434"
+
 
     profiles:
       - prod
       - all
     environment:
       BACKEND_URL: http://localhost:8080/api
+      USE_OLLAMA_DOCKER: "true"
+      OLLAMA_BASE_URL: "http://127.0.0.1:11434"
+      ENABLE_OLLAMA_API: "true"
+      OLLAMA_HOST: "0.0.0.0"
     volumes:
       - ollama:/root/.ollama
       - open-webui:/app/backend/data
@@ -75,18 +78,21 @@ services:
   # BETA STACK
   # ============================================
   open-webui-beta:
-    image: ghcr.io/open-webui/open-webui:Latest
+    image: ghcr.io/open-webui/open-webui:v0.7.2-ollama
     container_name: open-webui-beta
-    gpus:
-        - driver: nvidia
-          count: all
-          capabilities: ["gpu"]
+    ports:
+      - "11435:11434"
+
 
     profiles:
       - beta
       - all
     environment:
       BACKEND_URL: http://localhost:8081/api
+      USE_OLLAMA_DOCKER: "true"
+      OLLAMA_BASE_URL: "http://127.0.0.1:11434"
+      ENABLE_OLLAMA_API: "true"
+      OLLAMA_HOST: "0.0.0.0"
     volumes:
       - ollama-beta:/root/.ollama
       - open-webui-beta:/app/backend/data

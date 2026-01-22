@@ -1,0 +1,10 @@
+services:
+  open-webui2:
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+
+  open-webui-beta:
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri

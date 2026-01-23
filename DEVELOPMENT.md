@@ -4,21 +4,24 @@
 
 ```
 jarvis/
+├── docker-compose.yaml        # Root unified orchestration (both stacks)
+├── docker-compose.nvidia.yaml # GPU override for NVIDIA
+├── docker-compose.amd.yaml    # GPU override for AMD
+├── manage.sh                  # CLI management tool
+├── .env                       # Root environment template
+│
 ├── production/
-│   ├── docker-compose.yaml   # Production stack
 │   ├── nginx.conf            # Production reverse proxy
 │   ├── .env                  # Production Tailscale auth key (gitignored)
 │   └── README.md
 │
 ├── beta/
-│   ├── docker-compose.yaml   # Beta/development stack
 │   ├── nginx.conf            # Beta reverse proxy
 │   ├── .env                  # Beta Tailscale auth key (gitignored)
 │   ├── assets/               # Red branding (favicon, logo)
 │   └── README.md
 │
-├── shared/                   # (future: shared configs)
-├── README.md
+├── archive/                   # Legacy files (archived)
 └── DEVELOPMENT.md
 ```
 
@@ -125,10 +128,9 @@ When you access the beta instance at `https://jarvis-beta.YOUR_TAILNET.ts.net`:
 
 ### Assets Location
 
-All beta branding is in the `beta-assets/` directory:
+All beta branding is in the `beta/assets/` directory:
 - `favicon-beta.svg` - Red favicon with β symbol
 - `logo-beta.svg` - Red "BETA" text logo
-- `beta-banner.html` - Optional inline banner script
 
 These are automatically mounted into the beta container at startup.
 

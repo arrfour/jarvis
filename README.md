@@ -206,11 +206,11 @@ git checkout main
 
 ```bash
 # Connect to Ollama in production
-docker exec -it ollama ollama list          # See installed models
-docker exec -it ollama ollama pull llama2   # Download new model
+docker exec -it open-webui2 ollama list          # See installed models
+docker exec -it open-webui2 ollama pull llama2   # Download new model
 
 # Same for beta
-docker exec -it ollama-beta ollama pull mistral
+docker exec -it open-webui-beta ollama pull mistral
 ```
 
 ## 🌍 Access from Outside Your Machine
@@ -344,8 +344,9 @@ This checks syntax without starting containers.
 
 ## 🚀 Performance Tips
 
-1. **GPU Support**: Both stacks have `gpus: all` enabled. Works on NVIDIA only.
-   - Remove from `docker-compose.yaml` if you don't have GPU
+1. **GPU Support**: Automatically detected on startup (NVIDIA or AMD)
+   - Use `./manage.sh start --cpu` to force CPU-only mode
+   - GPU configuration is in `docker-compose.nvidia.yaml` and `docker-compose.amd.yaml`
 
 2. **Model Management**: Ollama models stored in persistent volumes
    - Production models: `docker volume inspect jarvis_ollama`

@@ -12,6 +12,7 @@ services:
   # ============================================
   # PRODUCTION STACK
   # ============================================
+  # Production - PINNED to stable version for reliability
   open-webui2:
     image: ghcr.io/open-webui/open-webui:v0.7.2-ollama
     container_name: open-webui2
@@ -77,8 +78,9 @@ services:
   # ============================================
   # BETA STACK
   # ============================================
+  # Beta - ROLLING tag to always get latest features for testing
   open-webui-beta:
-    image: ghcr.io/open-webui/open-webui:v0.7.2-ollama
+    image: ghcr.io/open-webui/open-webui:main-ollama
     container_name: open-webui-beta
     ports:
       - "11435:11434"

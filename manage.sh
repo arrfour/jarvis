@@ -74,8 +74,10 @@ case "$1" in
 
   start-beta|up-beta)
     echo "🚀 Starting beta stack only..."
+    echo "📥 Pulling latest beta image..."
+    run_compose --profile beta pull open-webui-beta
     run_compose --profile beta up -d
-    echo "✅ Beta stack running!"
+    echo "✅ Beta stack running (using latest image)!"
     ;;
 
   stop|down)
@@ -252,6 +254,10 @@ View Commands:
 Flags:
   --cpu                     Force CPU-only mode (ignore GPU even if present)
 
+Version Management:
+  versions                  Compare configured vs running image versions
+  promote                   Promote beta's tested image to production
+
 Other:
   help, --help, -h          Show this help message
 
@@ -273,6 +279,76 @@ EOF
     echo "  Beta: https://jarvis-beta.YOUR_TAILNET.ts.net"
     echo ""
     echo "  (Replace YOUR_TAILNET with your actual Tailnet name)"
+    ;;
+
+  versions)
+    echo "📊 Version Comparison:"
+    echo ""
+    # Extract image tags from docker-compose.yaml using service names
+    PROD_IMAGE=$(grep -A2 "open-webui2:" "$SCRIPT_DIR/docker-compose.yaml" | grep "image:" | head -1 | awk '{print $2}')
+    BETA_IMAGE=$(grep -A2 "open-webui-beta:" "$SCRIPT_DIR/docker-compose.yaml" | grep "image:" | head -1 | awk '{print $2}')
+    
+    # Get running container images
+    PROD_RUNNING=$(docker inspect open-webui2 --format='{{.Config.Image}}' 2>/dev/null || echo "Not running")
+    BETA_RUNNING=$(docker inspect open-webui-beta --format='{{.Config.Image}}' 2>/dev/null || echo "Not running")
+    
+    echo "  Configured Images:"
+    echo "    Production: $PROD_IMAGE"
+    echo "    Beta:       $BETA_IMAGE"
+    echo ""
+    echo "  Running Images:"
+    echo "    Production: $PROD_RUNNING"
+    echo "    Beta:       $BETA_RUNNING"
+    echo ""
+    
+    # Check if beta has newer version
+    if [ "$PROD_IMAGE" != "$BETA_RUNNING" ] && [ "$BETA_RUNNING" != "Not running" ]; then
+      echo "  💡 Tip: Run './manage.sh promote' to update production to beta's tested version."
+    fi
+    ;;
+
+  promote)
+    echo "🚀 Promote Beta Version to Production"
+    echo ""
+    
+    # Get current beta image
+    BETA_RUNNING=$(docker inspect open-webui-beta --format='{{.Config.Image}}' 2>/dev/null)
+    if [ -z "$BETA_RUNNING" ] || [ "$BETA_RUNNING" == "" ]; then
+      echo "❌ Beta container is not running. Start beta first with './manage.sh start-beta'"
+      exit 1
+    fi
+    
+    # Get the digest of the beta image for reproducibility
+    BETA_DIGEST=$(docker inspect open-webui-beta --format='{{.Image}}' 2>/dev/null)
+    
+    echo "  Current Beta Image: $BETA_RUNNING"
+    echo "  Current Beta Digest: ${BETA_DIGEST:0:19}..."
+    echo ""
+    
+    # Get current production image
+    PROD_IMAGE=$(grep -A1 "# Production - PINNED" "$SCRIPT_DIR/docker-compose.yaml" | grep "image:" | head -1 | awk '{print $2}')
+    echo "  Current Production Image: $PROD_IMAGE"
+    echo ""
+    
+    if [ "$PROD_IMAGE" == "$BETA_RUNNING" ]; then
+      echo "✅ Production is already running the same image as beta."
+      exit 0
+    fi
+    
+    echo "⚠️  This will update production to use: $BETA_RUNNING"
+    read -p "Type 'yes' to confirm: " confirm
+    if [ "$confirm" = "yes" ]; then
+      # Update docker-compose.yaml
+      sed -i "s|image: $PROD_IMAGE|image: $BETA_RUNNING|" "$SCRIPT_DIR/docker-compose.yaml"
+      echo "✅ Updated docker-compose.yaml"
+      echo ""
+      echo "Next steps:"
+      echo "  1. Review changes: git diff docker-compose.yaml"
+      echo "  2. Restart production: ./manage.sh restart-prod"
+      echo "  3. Commit: git add docker-compose.yaml && git commit -m 'chore: promote $(echo $BETA_RUNNING | cut -d: -f2) to production'"
+    else
+      echo "❌ Cancelled."
+    fi
     ;;
 
   *)

@@ -11,7 +11,8 @@ A dual-stack (production + beta) containerized deployment of **Open WebUI** with
 - 🔄 **Dual-Stack Architecture** - Production and beta environments running independently
 - 🎨 **Visual Differentiation** - Beta marked with red branding for quick identification
 - 📦 **Docker Compose** - Reproducible, version-controlled infrastructure
-- 🛠️ **Easy Management** - Bash `manage.sh` script OR Ansible automation for enterprise deployments
+- 🛠️ **Interactive TUI** - Beautiful terminal interface with keyboard navigation (or CLI fallback)
+- 🎛️ **Ansible Automation** - Enterprise-grade declarative operations
 - 🚀 **Ansible Automation** - One-command deployment to remote Linux servers with `make deploy`
 
 ## 🏗️ Architecture
@@ -20,7 +21,8 @@ A dual-stack (production + beta) containerized deployment of **Open WebUI** with
 jarvis/
 ├── 📋 Configuration & Management
 │   ├── docker-compose.yaml          ← Root unified orchestration (both stacks)
-│   ├── manage.sh                    ← Bash CLI tool (legacy, still supported)
+│   ├── tui.sh                       ← Interactive TUI (primary interface)
+│   ├── manage.sh                    ← CLI fallback + TUI launcher
 │   ├── .env                         ← Root environment template
 │   ├── .gitignore                   ← Secrets protection
 │   └── certs/                       ← SSL certificates (auto-generated)
@@ -81,7 +83,7 @@ jarvis/
 | Need to... | Start here |
 |-----------|-----------|
 | **Deploy to new server** | `ansible/README.md` → `bash quickstart.sh` |
-| **Manage locally (WSL/Linux)** | `./manage.sh help` (bash CLI) |
+| **Manage locally (WSL/Linux)** | `./manage.sh` (launches TUI) |
 | **Troubleshoot issues** | `TROUBLESHOOTING.md` |
 | **Develop new features** | `DEVELOPMENT.md` |
 | **Deploy production** | `DEPLOYMENT.md` or `ansible/Makefile` |
@@ -130,11 +132,31 @@ Done! Both stacks are now running.
 
 ## 📋 Stack Management
 
-You have **two options** for managing stacks:
+You have **three options** for managing stacks:
 
-### Option 1: Bash Script (Quick & Simple)
+### Option 1: Interactive TUI (Recommended)
 
-The `manage.sh` script provides quick, intuitive commands:
+Beautiful keyboard-driven interface with status dashboard:
+
+```bash
+# Install dialog (one-time)
+sudo apt install dialog     # Debian/Ubuntu
+sudo dnf install dialog     # Fedora
+
+# Launch TUI
+./manage.sh                 # Auto-launches when no args
+./tui.sh                    # Direct TUI launch
+```
+
+**Features:**
+- 🎹 Keyboard navigation (arrow keys + Enter)
+- 📊 Real-time status dashboard with health icons
+- 📋 Live log streaming
+- ⚠️ Confirmation dialogs for destructive operations
+
+### Option 2: CLI Commands (Quick & Simple)
+
+Direct command execution without TUI:
 
 ```bash
 ./manage.sh start          # Start both stacks
@@ -143,7 +165,7 @@ The `manage.sh` script provides quick, intuitive commands:
 ./manage.sh help           # Show all commands
 ```
 
-### Option 2: Ansible (Infrastructure as Code)
+### Option 3: Ansible (Infrastructure as Code)
 
 For idempotent, declarative operations:
 
@@ -157,7 +179,7 @@ make status                # Check status
 
 See [ansible/README.md](ansible/README.md) for full Ansible documentation.
 
-**Both approaches work side-by-side** - use whichever fits your workflow!
+**All approaches work side-by-side** - use whichever fits your workflow!
 
 ### The `manage.sh` Command Reference
 

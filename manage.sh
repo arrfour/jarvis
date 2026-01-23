@@ -51,6 +51,17 @@ detect_hardware "$@"
 
 # Command Handling
 case "$1" in
+  "")
+    # No arguments - launch TUI if available
+    if [ -f "$SCRIPT_DIR/tui.sh" ] && command -v dialog &> /dev/null; then
+      exec "$SCRIPT_DIR/tui.sh"
+    else
+      echo "💡 Tip: Install 'dialog' for interactive TUI mode: sudo apt install dialog"
+      echo ""
+      exec "$SCRIPT_DIR/manage.sh" help
+    fi
+    ;;
+
   start|up)
     echo "🚀 Starting both production and beta stacks..."
     run_compose --profile all up -d

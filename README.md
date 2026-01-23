@@ -306,6 +306,12 @@ Restart handles this automatically:
 ./manage.sh restart-prod
 ```
 
+### Certbot issues? 
+Too many restarts in a short time exceeds Let's Encrypt rate limits. 
+- check logs
+- check logs-prod
+- check logs-beta
+
 ## 🛠️ Manual Docker Commands (Advanced)
 
 For power users who want direct control:

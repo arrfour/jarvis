@@ -78,6 +78,12 @@ case "$1" in
     run_compose --profile beta pull open-webui-beta
     run_compose --profile beta up -d
     echo "✅ Beta stack running (using latest image)!"
+    echo ""
+    echo "⏳ Waiting for Tailscale to be ready..."
+    sleep 5
+    echo "🔧 Configuring Tailscale Serve for beta..."
+    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null || echo "⚠️  Tailscale Serve config may need manual setup"
+    echo "✅ Beta Tailscale Serve configured!"
     ;;
 
   stop|down)

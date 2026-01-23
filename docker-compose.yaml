@@ -33,6 +33,11 @@ services:
     restart: always
     networks:
       - internal-prod
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   tailscale-sidecar:
     image: tailscale/tailscale:latest
@@ -57,6 +62,11 @@ services:
     network_mode: host
     env_file:
       - production/.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx-prod:
     image: nginx:alpine
@@ -73,6 +83,11 @@ services:
       - internal-prod
     ports:
       - "0.0.0.0:8080:80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ============================================
   # BETA STACK
@@ -101,6 +116,11 @@ services:
     restart: always
     networks:
       - internal-beta
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   tailscale-sidecar-beta:
     image: tailscale/tailscale:latest
@@ -125,6 +145,11 @@ services:
     restart: always
     env_file:
       - beta/.env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   nginx-beta:
     image: nginx:alpine
@@ -141,6 +166,11 @@ services:
       - internal-beta
     ports:
       - "0.0.0.0:8081:80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   internal-prod:

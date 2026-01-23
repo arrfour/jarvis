@@ -1,0 +1,14 @@
+---
+# Defaults for setup role
+
+# Whether to install basic prerequisites (dialog, etc.)
+install_prerequisites: true
+
+# Whether to install Docker if missing
+install_docker: false
+
+# Whether to install Docker Compose if missing
+install_compose: false
+
+# Package state (present, latest)
+package_state: present

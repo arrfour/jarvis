@@ -46,8 +46,24 @@ get_status_icon() {
 }
 
 # Get container health summary
+# Detect Hardware Mode
+detect_mode() {
+    if command -v nvidia-smi &> /dev/null || [ -e /dev/nvidia0 ]; then
+        echo "\Z2🟢 NVIDIA GPU Mode\Zn"
+    elif [ -e /dev/kfd ]; then
+        echo "\Z1🔴 AMD GPU Mode\Zn"
+    else
+        echo "\Z3⚪ CPU Mode\Zn"
+    fi
+}
+
+# Get health summary
 get_health_summary() {
     local output=""
+    
+    # Mode Header
+    output+="Mode: $(detect_mode)\n"
+    output+="━━━━━━━━━━━━━━━━━━\n"
     
     # Production containers
     output+="━━━ PRODUCTION ━━━\n"
@@ -288,11 +304,12 @@ main_menu() {
                         "2" "🛑 Stop Stacks" \
                         "3" "🔄 Restart Stacks" \
                         "4" "📊 Status Dashboard" \
-                        "5" "📋 View Logs" \
-                        "6" "📦 Version Management" \
-                        "7" "⚙️  Configuration" \
-                        "8" "💥 Destructive Operations" \
-                        "9" "❓ Help" \
+                        "5" "📈 GPU Monitor" \
+                        "6" "📋 View Logs" \
+                        "7" "📦 Version Management" \
+                        "8" "⚙️  Configuration" \
+                        "9" "💥 Destructive Operations" \
+                        "10" "❓ Help" \
                         "0" "🚪 Exit" \
                         3>&1 1>&2 2>&3)
         
@@ -310,11 +327,16 @@ main_menu() {
             2) stop_menu ;;
             3) restart_menu ;;
             4) show_status_dashboard ;;
-            5) logs_menu ;;
-            6) version_menu ;;
-            7) config_menu ;;
-            8) destructive_menu ;;
-            9) run_with_output "help" ;;
+            5) 
+                clear
+                "$MANAGE_SCRIPT" monitor-gpu || true
+                read -p "Press Enter to continue..."
+                ;;
+            6) logs_menu ;;
+            7) version_menu ;;
+            8) config_menu ;;
+            9) destructive_menu ;;
+            10) run_with_output "help" ;;
             0) 
                 clear
                 echo "👋 Goodbye!"

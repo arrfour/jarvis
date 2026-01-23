@@ -7,6 +7,49 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Auto-detect container runtime (Podman vs Docker)
+function detect_container_runtime() {
+    # Skip if DOCKER_HOST is already set
+    if [ -n "$DOCKER_HOST" ]; then
+        return
+    fi
+
+    # Check for Podman's rootless socket first (common on Fedora/RHEL)
+    local podman_socket="/run/user/$(id -u)/podman/podman.sock"
+    if [ -S "$podman_socket" ]; then
+        export DOCKER_HOST="unix://$podman_socket"
+        echo "🐋 Using Podman (rootless socket)"
+        return
+    fi
+
+    # Check for Podman's root socket
+    if [ -S "/run/podman/podman.sock" ]; then
+        export DOCKER_HOST="unix:///run/podman/podman.sock"
+        echo "🐋 Using Podman (root socket)"
+        return
+    fi
+
+    # Check for Docker's socket
+    if [ -S "/var/run/docker.sock" ]; then
+        echo "🐋 Using Docker"
+        return
+    fi
+
+    # No socket found
+    echo "❌ No container runtime socket found!"
+    echo "   Please ensure Docker or Podman is running."
+    echo ""
+    echo "   For Podman (rootless), run:"
+    echo "     systemctl --user enable --now podman.socket"
+    echo ""
+    echo "   For Docker, run:"
+    echo "     sudo systemctl start docker"
+    exit 1
+}
+
+# Detect container runtime before any docker commands
+detect_container_runtime
+
 # Load environment variables
 export $(cat "$SCRIPT_DIR/production/.env" 2>/dev/null | grep -v '^#' | xargs)
 export $(cat "$SCRIPT_DIR/beta/.env" 2>/dev/null | grep -v '^#' | xargs)
@@ -46,6 +89,26 @@ function run_compose() {
     docker-compose $COMPOSE_FILES "$@"
 }
 
+# Helper: Configure Tailscale Serve safely (avoiding redundant calls/throttling)
+function configure_serve() {
+    local container=$1
+    local port=$2
+    
+    # Check if container is running
+    if ! docker ps | grep -q "$container"; then
+        return
+    fi
+    
+    # Check if already serving
+    if docker exec "$container" tailscale serve status 2>/dev/null | grep -q "http://127.0.0.1:$port"; then
+        echo "✅ $container already serving on port $port"
+        return
+    fi
+    
+    echo "🔧 Configuring Tailscale Serve for $container..."
+    docker exec "$container" tailscale serve --bg "http://127.0.0.1:$port" 2>/dev/null || echo "⚠️  Tailscale Serve config may need manual setup"
+}
+
 # Run detection
 detect_hardware "$@"
 
@@ -71,9 +134,8 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 5
-    echo "🔧 Configuring Tailscale Serve..."
-    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
-    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    configure_serve "tailscale-sidecar" "8080"
+    configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Tailscale Serve configured!"
     ;;
 
@@ -81,6 +143,10 @@ case "$1" in
     echo "🚀 Starting production stack only..."
     run_compose --profile prod up -d
     echo "✅ Production stack running!"
+    echo ""
+    echo "⏳ Waiting for Tailscale to be ready..."
+    sleep 5
+    configure_serve "tailscale-sidecar" "8080"
     ;;
 
   start-beta|up-beta)
@@ -92,8 +158,7 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 5
-    echo "🔧 Configuring Tailscale Serve for beta..."
-    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null || echo "⚠️  Tailscale Serve config may need manual setup"
+    configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Beta Tailscale Serve configured!"
     ;;
 
@@ -172,9 +237,8 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 5
-    echo "🔧 Reconfiguring Tailscale Serve..."
-    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
-    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    configure_serve "tailscale-sidecar" "8080"
+    configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Tailscale Serve reconfigured!"
     ;;
 
@@ -185,8 +249,7 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 3
-    echo "🔧 Reconfiguring Tailscale Serve for production..."
-    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
+    configure_serve "tailscale-sidecar" "8080"
     echo "✅ Production Tailscale Serve reconfigured!"
     ;;
 
@@ -197,8 +260,7 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 3
-    echo "🔧 Reconfiguring Tailscale Serve for beta..."
-    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Beta Tailscale Serve reconfigured!"
     ;;
 
@@ -265,6 +327,7 @@ View Commands:
   logs                      Show logs from all stacks (Ctrl+C to exit)
   logs-prod                 Show logs from production only
   logs-beta                 Show logs from beta only
+  monitor-gpu               Monitor GPU stats (temps, power, internal usage)
   config                    Show merged docker-compose configuration
   validate                  Validate docker-compose.yaml syntax
 
@@ -322,6 +385,60 @@ EOF
     if [ "$PROD_IMAGE" != "$BETA_RUNNING" ] && [ "$BETA_RUNNING" != "Not running" ]; then
       echo "  💡 Tip: Run './manage.sh promote' to update production to beta's tested version."
     fi
+    ;;
+
+  monitor-gpu)
+    echo "📊 GPU Monitor"
+    
+    # 1. Try host-level NVIDIA check first (fastest)
+    if command -v nvidia-smi &> /dev/null; then
+        echo "✅ NVIDIA host detected. Running nvidia-smi..."
+        nvidia-smi -l 1
+        exit 0
+    fi
+
+    # 2. Container-based check
+    # Find a running Ollama container (beta or prod)
+    CONTAINER=""
+    if docker ps | grep -q "ollama-beta"; then
+      CONTAINER="ollama-beta"
+    elif docker ps | grep -q "ollama-prod"; then
+      CONTAINER="ollama-prod"
+    # Fallback for bundled open-webui containers (non-split architecture)
+    elif docker ps | grep -q "open-webui-beta"; then
+      CONTAINER="open-webui-beta"
+    elif docker ps | grep -q "open-webui2"; then
+      CONTAINER="open-webui2"
+    fi
+    
+    if [ -z "$CONTAINER" ]; then
+      echo "❌ No running GPU containers found."
+      echo "   Start a stack first: ./manage.sh start-beta"
+      exit 1
+    fi
+    
+    echo "   Target container: $CONTAINER"
+    
+    # Check for NVIDIA inside container
+    if docker exec $CONTAINER command -v nvidia-smi &>/dev/null; then
+        echo "✅ NVIDIA container detected. Running nvidia-smi..."
+        docker exec -it $CONTAINER nvidia-smi -l 1
+        exit 0
+    fi
+    
+    # Check for AMD/ROCm inside container
+    echo "ℹ️  Checking for AMD ROCm..."
+    
+    # Check if rocm-smi is installed
+    if ! docker exec $CONTAINER which rocm-smi &>/dev/null; then
+      echo "⬇️  Installing rocm-smi inside container (one-time setup for AMD)..."
+      docker exec -u 0 $CONTAINER sh -c "apt-get update -qq && apt-get install -y -qq rocm-smi" || echo "⚠️  Failed to install rocm-smi. Is this an Alpine container?"
+    fi
+    
+    # Run AMD monitor
+    echo "🟢 Starting AMD monitor... (Ctrl+C to exit)"
+    # Use a loop since --watch isn't supported in all rocm-smi versions
+    docker exec -it $CONTAINER sh -c "while true; do clear; rocm-smi; sleep 1; done"
     ;;
 
   promote)

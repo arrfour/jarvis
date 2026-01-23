@@ -8,6 +8,12 @@ beta/.env
 production/certs/
 beta/certs/
 !certs/.gitkeep
+*.pem
+*.key
+*.crt
+*.csr
+*.pfx
+*.p12
 
 # Docker volumes and state
 production/tailscale-state/

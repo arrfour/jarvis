@@ -13,6 +13,16 @@ Auth keys are stored in `.env` files that are **gitignored**:
 > [!IMPORTANT]
 > **Never commit auth keys to git.** If you accidentally commit secrets, rotate them immediately at https://login.tailscale.com/admin/settings/keys
 
+### Secure Environment Sourcing
+
+When loading `.env` files in shell scripts (like `manage.sh`), the project uses a secure parsing method:
+```bash
+set -a
+[ -f ".env" ] && source ".env"
+set +a
+```
+**Do not use** `export $(cat .env | xargs)` or similar constructs, as they create injection vulnerabilities if secrets contain spaces or shell metacharacters.
+
 ### Key Rotation Schedule
 
 Tailscale auth keys should be rotated:

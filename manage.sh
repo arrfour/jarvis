@@ -50,14 +50,49 @@ function detect_container_runtime() {
 # Detect container runtime before any docker commands
 detect_container_runtime
 
-# Load environment variables
-export $(cat "$SCRIPT_DIR/production/.env" 2>/dev/null | grep -v '^#' | xargs)
-export $(cat "$SCRIPT_DIR/beta/.env" 2>/dev/null | grep -v '^#' | xargs)
+# Load environment variables safely
+# Note: Using standard 'set -a' parsing rather than 'xargs' to guard against space/shell metacharacter injection.
+set -a
+[ -f "$SCRIPT_DIR/production/.env" ] && source "$SCRIPT_DIR/production/.env"
+[ -f "$SCRIPT_DIR/beta/.env" ] && source "$SCRIPT_DIR/beta/.env"
+set +a
 
 # Global Configuration
 COMPOSE_FILES="-f docker-compose.yaml"
 
 # Helper Functions
+
+# Wait for Tailscale to be ready using a polling loop instead of a hardcoded sleep
+function wait_for_tailscale() {
+    local container=$1
+    echo "⏳ Waiting for Tailscale to be ready in $container..."
+    for i in {1..30}; do
+        if docker exec "$container" tailscale status >/dev/null 2>&1; then
+            echo "✅ $container is ready!"
+            return 0
+        fi
+        sleep 1
+    done
+    echo "⚠️  Timed out waiting for Tailscale in $container"
+}
+
+function nuke_stack() {
+    local stack_name=$1
+    local data_desc=$2
+    local command_str=$3
+    echo "💥 WARNING: This will DELETE all volumes and data for $stack_name!"
+    echo "$data_desc"
+    read -p "Type 'yes' to confirm: " confirm
+    if [ "$confirm" = "yes" ]; then
+        echo "💣 Nuking $stack_name stack and volumes..."
+        eval "$command_str"
+        echo "✅ $stack_name stack and volumes destroyed!"
+        echo "⚠️  $stack_name data is permanently gone."
+    else
+        echo "❌ Cancelled."
+    fi
+}
+
 function detect_hardware() {
     # Check for --cpu override
     for arg in "$@"; do
@@ -132,8 +167,8 @@ case "$1" in
     echo ""
     run_compose --profile all ps
     echo ""
-    echo "⏳ Waiting for Tailscale to be ready..."
-    sleep 5
+    wait_for_tailscale "tailscale-sidecar"
+    wait_for_tailscale "tailscale-sidecar-beta"
     configure_serve "tailscale-sidecar" "8080"
     configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Tailscale Serve configured!"
@@ -144,8 +179,7 @@ case "$1" in
     run_compose --profile prod up -d
     echo "✅ Production stack running!"
     echo ""
-    echo "⏳ Waiting for Tailscale to be ready..."
-    sleep 5
+    wait_for_tailscale "tailscale-sidecar"
     configure_serve "tailscale-sidecar" "8080"
     ;;
 
@@ -156,8 +190,7 @@ case "$1" in
     run_compose --profile beta up -d
     echo "✅ Beta stack running (using latest image)!"
     echo ""
-    echo "⏳ Waiting for Tailscale to be ready..."
-    sleep 5
+    wait_for_tailscale "tailscale-sidecar-beta"
     configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Beta Tailscale Serve configured!"
     ;;
@@ -185,49 +218,15 @@ case "$1" in
     ;;
 
   nuke|destroy)
-    echo "💥 WARNING: This will DELETE all volumes and data for BOTH stacks!"
-    echo "Production and Beta data will be PERMANENTLY REMOVED"
-    read -p "Type 'yes' to confirm: " confirm
-    if [ "$confirm" = "yes" ]; then
-      echo "💣 Nuking both stacks and volumes..."
-      run_compose --profile all down -v
-      echo "✅ Both stacks and all volumes destroyed!"
-      echo "⚠️  All data is permanently gone. Run './manage.sh start' to recreate fresh."
-    else
-      echo "❌ Cancelled."
-    fi
+    nuke_stack "BOTH" "Production and Beta data will be PERMANENTLY REMOVED" "run_compose --profile all down -v"
     ;;
 
   nuke-prod|destroy-prod)
-    echo "💥 WARNING: This will DELETE all volumes and data for PRODUCTION!"
-    echo "Production data will be PERMANENTLY REMOVED"
-    read -p "Type 'yes' to confirm: " confirm
-    if [ "$confirm" = "yes" ]; then
-      echo "💣 Nuking production stack and volumes..."
-      docker volume rm jarvis_ollama jarvis_open-webui jarvis_tailscale-sidecar-state 2>/dev/null || true
-      run_compose stop open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true
-      run_compose rm -f open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true
-      echo "✅ Production stack and volumes destroyed!"
-      echo "⚠️  Production data is permanently gone. Run './manage.sh start-prod' to recreate fresh."
-    else
-      echo "❌ Cancelled."
-    fi
+    nuke_stack "PRODUCTION" "Production data will be PERMANENTLY REMOVED" "docker volume rm jarvis_ollama jarvis_open-webui jarvis_tailscale-sidecar-state 2>/dev/null || true; run_compose stop open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true; run_compose rm -f open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true"
     ;;
 
   nuke-beta|destroy-beta)
-    echo "💥 WARNING: This will DELETE all volumes and data for BETA!"
-    echo "Beta data will be PERMANENTLY REMOVED"
-    read -p "Type 'yes' to confirm: " confirm
-    if [ "$confirm" = "yes" ]; then
-      echo "💣 Nuking beta stack and volumes..."
-      docker volume rm jarvis_ollama-beta jarvis_open-webui-beta jarvis_tailscale-sidecar-beta-state 2>/dev/null || true
-      run_compose stop open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true
-      run_compose rm -f open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true
-      echo "✅ Beta stack and volumes destroyed!"
-      echo "⚠️  Beta data is permanently gone. Run './manage.sh start-beta' to recreate fresh."
-    else
-      echo "❌ Cancelled."
-    fi
+    nuke_stack "BETA" "Beta data will be PERMANENTLY REMOVED" "docker volume rm jarvis_ollama-beta jarvis_open-webui-beta jarvis_tailscale-sidecar-beta-state 2>/dev/null || true; run_compose stop open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true; run_compose rm -f open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true"
     ;;
 
   restart)
@@ -235,8 +234,8 @@ case "$1" in
     run_compose --profile all restart
     echo "✅ Both stacks restarted!"
     echo ""
-    echo "⏳ Waiting for Tailscale to be ready..."
-    sleep 5
+    wait_for_tailscale "tailscale-sidecar"
+    wait_for_tailscale "tailscale-sidecar-beta"
     configure_serve "tailscale-sidecar" "8080"
     configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Tailscale Serve reconfigured!"
@@ -247,8 +246,7 @@ case "$1" in
     run_compose restart open-webui2 tailscale-sidecar nginx-prod
     echo "✅ Production stack restarted!"
     echo ""
-    echo "⏳ Waiting for Tailscale to be ready..."
-    sleep 3
+    wait_for_tailscale "tailscale-sidecar"
     configure_serve "tailscale-sidecar" "8080"
     echo "✅ Production Tailscale Serve reconfigured!"
     ;;
@@ -258,8 +256,7 @@ case "$1" in
     run_compose restart open-webui-beta tailscale-sidecar-beta nginx-beta
     echo "✅ Beta stack restarted!"
     echo ""
-    echo "⏳ Waiting for Tailscale to be ready..."
-    sleep 3
+    wait_for_tailscale "tailscale-sidecar-beta"
     configure_serve "tailscale-sidecar-beta" "8081"
     echo "✅ Beta Tailscale Serve reconfigured!"
     ;;

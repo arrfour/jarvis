@@ -285,7 +285,9 @@ run_with_output() {
     echo "Running: ./manage.sh $cmd"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
-    "$MANAGE_SCRIPT" "$cmd" 2>&1 | tee /tmp/jarvis_tui_output.txt
+    TMP_OUTPUT=$(mktemp /tmp/jarvis_tui_output.XXXXXX)
+    "$MANAGE_SCRIPT" "$cmd" 2>&1 | tee "$TMP_OUTPUT"
+    rm -f "$TMP_OUTPUT"
     
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

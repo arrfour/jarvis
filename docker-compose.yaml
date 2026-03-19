@@ -139,6 +139,8 @@ services:
     volumes:
       - tailscale-sidecar-beta-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
+      - ./beta/tailscale-entrypoint.sh:/tailscale-entrypoint.sh:ro,z
+    entrypoint: ["/bin/bash", "/tailscale-entrypoint.sh"]
     cap_add:
       - NET_ADMIN
       - SYS_MODULE

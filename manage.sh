@@ -1,9 +1,12 @@
 #!/bin/bash
 # Jarvis Stack Manager - Easy commands to manage production and beta stacks
-# 
+#
 # Usage: ./manage.sh [command] [--cpu]
 
 set -e
+
+# Error handler for better diagnostics
+trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -129,8 +132,8 @@ function configure_serve() {
     local container=$1
     local port=$2
     
-    # Check if container is running
-    if ! docker ps | grep -q "$container"; then
+    # Check if container exists (using docker inspect is more reliable)
+    if ! docker inspect "$container" >/dev/null 2>&1; then
         return
     fi
     
@@ -222,11 +225,11 @@ case "$1" in
     ;;
 
   nuke-prod|destroy-prod)
-    nuke_stack "PRODUCTION" "Production data will be PERMANENTLY REMOVED" "docker volume rm jarvis_ollama jarvis_open-webui jarvis_tailscale-sidecar-state 2>/dev/null || true; run_compose stop open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true; run_compose rm -f open-webui2 tailscale-sidecar nginx-prod 2>/dev/null || true"
+    nuke_stack "PRODUCTION" "Production data will be PERMANENTLY REMOVED" "run_compose --profile prod down -v"
     ;;
 
   nuke-beta|destroy-beta)
-    nuke_stack "BETA" "Beta data will be PERMANENTLY REMOVED" "docker volume rm jarvis_ollama-beta jarvis_open-webui-beta jarvis_tailscale-sidecar-beta-state 2>/dev/null || true; run_compose stop open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true; run_compose rm -f open-webui-beta tailscale-sidecar-beta nginx-beta 2>/dev/null || true"
+    nuke_stack "BETA" "Beta data will be PERMANENTLY REMOVED" "run_compose --profile beta down -v"
     ;;
 
   restart)
@@ -361,9 +364,9 @@ EOF
   versions)
     echo "📊 Version Comparison:"
     echo ""
-    # Extract image tags from docker-compose.yaml using service names
-    PROD_IMAGE=$(grep -A2 "open-webui2:" "$SCRIPT_DIR/docker-compose.yaml" | grep "image:" | head -1 | awk '{print $2}')
-    BETA_IMAGE=$(grep -A2 "open-webui-beta:" "$SCRIPT_DIR/docker-compose.yaml" | grep "image:" | head -1 | awk '{print $2}')
+    # Extract image tags from docker-compose.yaml using service names (robust awk-based parsing)
+    PROD_IMAGE=$(awk '/^  open-webui2:/{flag=1} flag && /image:/{gsub(/.*image:\s+/, ""); gsub(/\s+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
+    BETA_IMAGE=$(awk '/^  open-webui-beta:/{flag=1} flag && /image:/{gsub(/.*image:\s+/, ""); gsub(/\s+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
     
     # Get running container images
     PROD_RUNNING=$(docker inspect open-webui2 --format='{{.Config.Image}}' 2>/dev/null || echo "Not running")
@@ -456,8 +459,8 @@ EOF
     echo "  Current Beta Digest: ${BETA_DIGEST:0:19}..."
     echo ""
     
-    # Get current production image
-    PROD_IMAGE=$(grep -A1 "# Production - PINNED" "$SCRIPT_DIR/docker-compose.yaml" | grep "image:" | head -1 | awk '{print $2}')
+    # Get current production image (robust awk-based parsing)
+    PROD_IMAGE=$(awk '/^  open-webui2:/{flag=1} flag && /image:/{gsub(/.*image:\s+/, ""); gsub(/\s+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
     echo "  Current Production Image: $PROD_IMAGE"
     echo ""
     
@@ -469,8 +472,11 @@ EOF
     echo "⚠️  This will update production to use: $BETA_RUNNING"
     read -p "Type 'yes' to confirm: " confirm
     if [ "$confirm" = "yes" ]; then
-      # Update docker-compose.yaml
-      sed -i "s|image: $PROD_IMAGE|image: $BETA_RUNNING|" "$SCRIPT_DIR/docker-compose.yaml"
+      # Update docker-compose.yaml (using awk to safely replace with special chars)
+      awk -v prod="$PROD_IMAGE" -v beta="$BETA_RUNNING" \
+        '{gsub("image: " prod, "image: " beta); print}' \
+        "$SCRIPT_DIR/docker-compose.yaml" > "$SCRIPT_DIR/docker-compose.yaml.tmp" && \
+        mv "$SCRIPT_DIR/docker-compose.yaml.tmp" "$SCRIPT_DIR/docker-compose.yaml"
       echo "✅ Updated docker-compose.yaml"
       echo ""
       echo "Next steps:"

@@ -33,6 +33,14 @@ services:
     restart: always
     networks:
       - internal-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
     logging:
       driver: "json-file"
       options:
@@ -40,7 +48,7 @@ services:
         max-file: "3"
 
   tailscale-sidecar:
-    image: tailscale/tailscale:latest
+    image: tailscale/tailscale:v1.72.0
     container_name: tailscale-sidecar
     hostname: jarvis
     privileged: true
@@ -116,6 +124,14 @@ services:
     restart: always
     networks:
       - internal-beta
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
     logging:
       driver: "json-file"
       options:
@@ -123,7 +139,7 @@ services:
         max-file: "3"
 
   tailscale-sidecar-beta:
-    image: tailscale/tailscale:latest
+    image: tailscale/tailscale:v1.72.0
     container_name: tailscale-sidecar-beta
     hostname: jarvis-beta
     network_mode: host
@@ -140,7 +156,7 @@ services:
       - tailscale-sidecar-beta-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
       - ./beta/tailscale-entrypoint.sh:/tailscale-entrypoint.sh:ro,z
-    entrypoint: ["/bin/bash", "/tailscale-entrypoint.sh"]
+    entrypoint: ["/bin/sh", "/tailscale-entrypoint.sh"]
     cap_add:
       - NET_ADMIN
       - SYS_MODULE

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Wait for Tailscale daemon to start and configure Serve for Beta
 
 set -e
@@ -23,7 +23,7 @@ tailscale status
 
 # Configure Tailscale Serve to proxy to localhost:8081
 echo "Configuring Tailscale Serve for Beta..."
-tailscale serve https / http://127.0.0.1:8081 || echo "Note: Serve configuration may require device approval first"
+tailscale serve --bg https / http://127.0.0.1:8081 || echo "Note: Serve configuration may require device approval first"
 
 # Keep the daemon running
 wait $BOOT_PID

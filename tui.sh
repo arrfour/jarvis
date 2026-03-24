@@ -276,19 +276,16 @@ destructive_menu() {
     esac
 }
 
-# Run manage.sh command and show output in dialog
+# Run manage.sh command and show output
 run_with_output() {
     local cmd=$1
-    local output
-    
+
     clear
     echo "Running: ./manage.sh $cmd"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
-    TMP_OUTPUT=$(mktemp /tmp/jarvis_tui_output.XXXXXX)
-    "$MANAGE_SCRIPT" "$cmd" 2>&1 | tee "$TMP_OUTPUT"
-    rm -f "$TMP_OUTPUT"
-    
+
+    "$MANAGE_SCRIPT" "$cmd" 2>&1
+
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     read -p "Press Enter to continue..."
@@ -316,12 +313,16 @@ main_menu() {
                         3>&1 1>&2 2>&3)
         
         local exit_status=$?
-        
-        # Handle ESC or Cancel
-        if [ $exit_status -ne 0 ]; then
+
+        # Handle ESC (1) or Cancel (255) - graceful exit
+        if [ $exit_status -eq 1 ] || [ $exit_status -eq 255 ]; then
             clear
             echo "👋 Goodbye!"
             exit 0
+        # Handle other errors
+        elif [ $exit_status -ne 0 ]; then
+            echo "❌ Dialog error (exit code: $exit_status)"
+            exit 1
         fi
         
         case "$choice" in

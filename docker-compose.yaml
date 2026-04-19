@@ -47,7 +47,6 @@ services:
       - prod
       - all
     environment:
-      TS_AUTHKEY: ${TS_AUTHKEY}
       TS_HOSTNAME: jarvis
       TS_ACCEPT_DNS: true
       # VIP registration — override if defaults don't match your setup
@@ -119,7 +118,6 @@ services:
       - beta
       - all
     environment:
-      TS_AUTHKEY: ${TS_AUTHKEY_BETA}
       TS_HOSTNAME: jarvis-beta
       TS_ACCEPT_DNS: true
     volumes:

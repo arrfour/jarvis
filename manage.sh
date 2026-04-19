@@ -19,9 +19,16 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 5
-    echo "🔧 Configuring Tailscale Serve..."
-    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
-    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    echo "🔧 Configuring Tailscale Serve (if not already managed)..."
+    # Skip manual serve config if the integrated sidecar has already registered its VIP
+    for container in tailscale-sidecar tailscale-sidecar-beta; do
+       if ! docker exec "$container" tailscale serve status --json 2>/dev/null | grep -q "\"Services\": {"; then
+           [ "$container" == "tailscale-sidecar" ] && port="8080" || port="8081"
+           docker exec "$container" tailscale serve --bg "http://127.0.0.1:$port" 2>/dev/null || true
+       else
+           echo "✅ $container is using integrated VIP registration. Skipping manual proxy config."
+       fi
+    done
     echo "✅ Tailscale Serve configured!"
     ;;
 
@@ -106,9 +113,15 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 5
-    echo "🔧 Reconfiguring Tailscale Serve..."
-    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
-    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    echo "🔧 Reconfiguring Tailscale Serve (if not already managed)..."
+    for container in tailscale-sidecar tailscale-sidecar-beta; do
+       if ! docker exec "$container" tailscale serve status --json 2>/dev/null | grep -q "\"Services\": {"; then
+           [ "$container" == "tailscale-sidecar" ] && port="8080" || port="8081"
+           docker exec "$container" tailscale serve --bg "http://127.0.0.1:$port" 2>/dev/null || true
+       else
+           echo "✅ $container is using integrated VIP registration. Skipping manual proxy config."
+       fi
+    done
     echo "✅ Tailscale Serve reconfigured!"
     ;;
 
@@ -119,8 +132,12 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 3
-    echo "🔧 Reconfiguring Tailscale Serve for production..."
-    docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null
+    echo "🔧 Reconfiguring Tailscale Serve for production (if not already managed)..."
+    if ! docker exec tailscale-sidecar tailscale serve status --json 2>/dev/null | grep -q "\"Services\": {"; then
+        docker exec tailscale-sidecar tailscale serve --bg http://127.0.0.1:8080 2>/dev/null || true
+    else
+        echo "✅ tailscale-sidecar is using integrated VIP registration."
+    fi
     echo "✅ Production Tailscale Serve reconfigured!"
     ;;
 
@@ -131,8 +148,12 @@ case "$1" in
     echo ""
     echo "⏳ Waiting for Tailscale to be ready..."
     sleep 3
-    echo "🔧 Reconfiguring Tailscale Serve for beta..."
-    docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null
+    echo "🔧 Reconfiguring Tailscale Serve for beta (if not already managed)..."
+    if ! docker exec tailscale-sidecar-beta tailscale serve status --json 2>/dev/null | grep -q "\"Services\": {"; then
+        docker exec tailscale-sidecar-beta tailscale serve --bg http://127.0.0.1:8081 2>/dev/null || true
+    else
+        echo "✅ tailscale-sidecar-beta is using integrated VIP registration."
+    fi
     echo "✅ Beta Tailscale Serve reconfigured!"
     ;;
 

@@ -72,11 +72,15 @@ VIP_MODE="${VIP_MODE:-https}"
 echo "[ts-entrypoint] Registering ${VIP_SERVICE} (${VIP_MODE}) → ${VIP_BACKEND} ..."
 
 if [ "$VIP_MODE" = "http" ]; then
-    # Register purely as HTTP on port 80
-    if tailscale_cli serve --bg --service="$VIP_SERVICE" --http=80 "$VIP_BACKEND"; then
-        echo "[ts-entrypoint] VIP (HTTP) registered successfully. Monitoring for shutdown..."
+    # Dual-port registration (to satisfy Tailscale port 443 requirement while bypassing ACME rate limit)
+    echo "[ts-entrypoint] Registering Port 80 (HTTP) ..."
+    tailscale_cli serve --bg --service="$VIP_SERVICE" --http=80 "$VIP_BACKEND" || true
+    
+    echo "[ts-entrypoint] Registering Port 443 (TCP Pass-through) ..."
+    if tailscale_cli serve --bg --service="$VIP_SERVICE" --tcp=443 "tcp://${VIP_BACKEND#*://}"; then
+        echo "[ts-entrypoint] VIP (Dual-Port HTTP/TCP) registered successfully. Monitoring for shutdown..."
     else
-        echo "[ts-entrypoint] Failed to register VIP (HTTP)."
+        echo "[ts-entrypoint] Failed to register VIP (Dual-Port)."
         exit 1
     fi
 else

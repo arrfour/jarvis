@@ -54,8 +54,11 @@ echo "[ts-entrypoint] App healthy."
 
 # ── 4. Register VIP backend ──────────────────────────────────────────────────
 echo "[ts-entrypoint] Registering ${VIP_SERVICE} → ${VIP_BACKEND} ..."
-tailscale serve --bg --service="$VIP_SERVICE" "$VIP_BACKEND"
-echo "[ts-entrypoint] VIP registered. Monitoring for shutdown..."
+if tailscale serve --bg --service="$VIP_SERVICE" "$VIP_BACKEND"; then
+  echo "[ts-entrypoint] VIP registered successfully. Monitoring for shutdown..."
+else
+  echo "[ts-entrypoint] ERROR: VIP registration failed (check if node is tagged). Monitoring anyway..."
+fi
 
 # ── 5. Clean withdrawal on SIGTERM / SIGINT ──────────────────────────────────
 trap 'echo "[ts-entrypoint] Withdrawing ${VIP_SERVICE} backend..."; \

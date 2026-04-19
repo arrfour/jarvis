@@ -49,7 +49,7 @@ services:
     environment:
       TS_HOSTNAME: jarvis
       TS_ACCEPT_DNS: true
-      TS_EXTRA_ARGS: --ephemeral
+      TS_EPHEMERAL: "true"
       # VIP registration — override if defaults don't match your setup
       APP_HEALTH_URL: ${APP_HEALTH_URL:-http://127.0.0.1:8080/health}
       VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}

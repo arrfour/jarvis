@@ -121,9 +121,16 @@ services:
     environment:
       TS_HOSTNAME: jarvis-beta
       TS_ACCEPT_DNS: true
+      TS_EPHEMERAL: "true"
+      # VIP registration — takeover the production service
+      APP_HEALTH_URL: ${APP_HEALTH_URL_BETA:-http://127.0.0.1:8081/health}
+      VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
+      VIP_BACKEND: ${VIP_BACKEND:-https://localhost:443}
     volumes:
       - tailscale-sidecar-beta-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
+      - ./production/tailscale-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     cap_add:
       - NET_ADMIN
       - SYS_MODULE

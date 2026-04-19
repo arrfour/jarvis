@@ -21,6 +21,16 @@ VIP_SERVICE="${VIP_SERVICE:-svc:jarvis}"
 VIP_BACKEND="${VIP_BACKEND:-https://localhost:443}"
 TS_READY_TIMEOUT="${TS_READY_TIMEOUT:-60}"
 
+# Detect socket path (tailscale/tailscale image may use /tmp if /var/run is restricted)
+TS_SOCKET="/var/run/tailscale/tailscaled.sock"
+if [ ! -S "$TS_SOCKET" ] && [ -S "/tmp/tailscaled.sock" ]; then
+    TS_SOCKET="/tmp/tailscaled.sock"
+fi
+
+tailscale_cli() {
+    tailscale --socket="$TS_SOCKET" "$@"
+}
+
 # ── 1. Start Tailscale daemon ─────────────────────────────────────────────────
 echo "[ts-entrypoint] Starting Tailscale daemon..."
 /usr/local/bin/containerboot &
@@ -30,18 +40,21 @@ BOOT_PID=$!
 echo "[ts-entrypoint] Waiting for tailscaled (up to ${TS_READY_TIMEOUT}s)..."
 i=0
 while [ "$i" -lt "$TS_READY_TIMEOUT" ]; do
-  tailscale status >/dev/null 2>&1 && break
+  # Fallback check for socket appearance
+  if [ ! -S "$TS_SOCKET" ] && [ -S "/tmp/tailscaled.sock" ]; then TS_SOCKET="/tmp/tailscaled.sock"; fi
+  
+  tailscale_cli status >/dev/null 2>&1 && break
   sleep 1
   i=$((i + 1))
 done
 
-if ! tailscale status >/dev/null 2>&1; then
+if ! tailscale_cli status >/dev/null 2>&1; then
   echo "[ts-entrypoint] ERROR: Tailscale not ready after ${TS_READY_TIMEOUT}s — skipping VIP registration."
   wait "$BOOT_PID"
   exit 1
 fi
 
-echo "[ts-entrypoint] Tailscale daemon ready."
+echo "[ts-entrypoint] Tailscale daemon ready (socket: ${TS_SOCKET})."
 
 # ── 3. Poll app health before registering VIP ────────────────────────────────
 # tailscale-sidecar is network_mode: host, so localhost:8080 = nginx on the host.
@@ -54,7 +67,7 @@ echo "[ts-entrypoint] App healthy."
 
 # ── 4. Register VIP backend ──────────────────────────────────────────────────
 echo "[ts-entrypoint] Registering ${VIP_SERVICE} → ${VIP_BACKEND} ..."
-if tailscale serve --bg --service="$VIP_SERVICE" "$VIP_BACKEND"; then
+if tailscale_cli serve --bg --service="$VIP_SERVICE" "$VIP_BACKEND"; then
   echo "[ts-entrypoint] VIP registered successfully. Monitoring for shutdown..."
 else
   echo "[ts-entrypoint] ERROR: VIP registration failed (check if node is tagged). Monitoring anyway..."
@@ -62,7 +75,7 @@ fi
 
 # ── 5. Clean withdrawal on SIGTERM / SIGINT ──────────────────────────────────
 trap 'echo "[ts-entrypoint] Withdrawing ${VIP_SERVICE} backend..."; \
-      tailscale serve --service="$VIP_SERVICE" --remove "$VIP_BACKEND" 2>/dev/null || true; \
+      tailscale_cli serve --service="$VIP_SERVICE" --remove "$VIP_BACKEND" 2>/dev/null || true; \
       kill "$BOOT_PID" 2>/dev/null; \
       wait "$BOOT_PID" 2>/dev/null; \
       exit 0' TERM INT

@@ -92,3 +92,66 @@ All should return the Open WebUI HTML page.
 - Tailscale Serve not configured
 - Firewall blocking traffic
 - DNS not resolving (check `tailscale status`)
+
+---
+
+## VIP Registrar (`vip-registrar` sidecar)
+
+The `vip-registrar` container registers this machine as a backend for the `svc:jarvis` Tailscale VIP after the app passes its healthcheck, and withdraws cleanly on `docker compose down`.
+
+### Container exits immediately / never registers
+
+**Check logs first:**
+```bash
+docker logs vip-registrar
+```
+
+**Cause 1: Host socket not found**
+
+The sidecar mounts the host's `tailscaled` socket. If Tailscale is only running inside Docker (not natively on the host), the socket won't exist.
+
+```bash
+# Verify on the host:
+ls -la /var/run/tailscale/tailscaled.sock
+```
+
+If missing, either install Tailscale natively on the host, or override the path in `production/.env`:
+```bash
+TAILSCALE_SOCK=/path/to/custom/tailscaled.sock
+```
+
+**Cause 2: Tailscale binary not found or wrong path**
+
+```bash
+# Check the default path:
+which tailscale
+# Override in production/.env if different:
+TAILSCALE_BIN=/usr/local/bin/tailscale
+```
+
+**Cause 3: Missing `tag:services` ACL tag**
+
+The host must hold `tag:services` on the tailnet and `svc:jarvis` must list `tag:services` in its allowed backends in the Tailscale control plane. Verify at https://login.tailscale.com/admin/acls.
+
+### VIP stays registered after `docker compose down`
+
+The SIGTERM trap in the sidecar should withdraw the VIP automatically. If it doesn't:
+
+```bash
+# Manually withdraw on the host:
+tailscale serve --service=svc:jarvis --remove https://localhost:443
+
+# Verify it's cleared:
+tailscale serve status
+```
+
+### VIP registered but traffic not reaching app
+
+- Confirm `open-webui2` passed its healthcheck: `docker inspect open-webui2 | grep -A5 Health`
+- Confirm Nginx is running: `docker ps | grep nginx-proxy`
+- Check Nginx is reachable: `curl -fsS http://localhost:8080/health`
+- Check `tailscale serve status` shows `svc:jarvis` pointing to `https://localhost:443`
+
+### Known limitation (v1)
+
+If `open-webui2` crashes *after* the VIP is registered, the VIP stays advertised (the sidecar is in its sleep loop and unaware of app health). Tailscale's own VIP health checks (liveness re-check) are planned for v2.

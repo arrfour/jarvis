@@ -31,6 +31,12 @@ services:
     restart: always
     networks:
       - internal-prod
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
 
   tailscale-sidecar:
     image: tailscale/tailscale:latest
@@ -70,6 +76,35 @@ services:
       - internal-prod
     ports:
       - "127.0.0.1:8080:80"
+
+  # Registers this host as a backend for the svc:jarvis Tailscale VIP.
+  # Waits for open-webui2 to pass its healthcheck before advertising.
+  # Traps SIGTERM to withdraw the VIP cleanly on `docker compose down`.
+  # Requires native Tailscale on the host (socket at TAILSCALE_SOCK).
+  vip-registrar:
+    image: alpine:3.21
+    container_name: vip-registrar
+    network_mode: host
+    profiles:
+      - prod
+      - all
+    volumes:
+      - ${TAILSCALE_SOCK:-/var/run/tailscale/tailscaled.sock}:/var/run/tailscale/tailscaled.sock
+      - ${TAILSCALE_BIN:-/usr/bin/tailscale}:/usr/bin/tailscale:ro
+    depends_on:
+      open-webui2:
+        condition: service_healthy
+    restart: "no"
+    stop_grace_period: 15s
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "[vip-registrar] Registering svc:jarvis backend..."
+        tailscale serve --bg --service=svc:jarvis https://localhost:443
+        echo "[vip-registrar] Registered. Waiting for SIGTERM to withdraw..."
+        trap 'echo "[vip-registrar] Withdrawing svc:jarvis backend..."; tailscale serve --service=svc:jarvis --remove https://localhost:443; exit 0' TERM INT
+        while true; do sleep 5; done
 
   # ============================================
   # BETA STACK

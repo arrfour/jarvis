@@ -259,7 +259,7 @@ develop (beta/development work)
 
 | Stack | Containers | Ports | Tailscale Domain |
 |-------|-----------|-------|-----------------|
-| **Production** | `nginx-proxy`, `open-webui2`, `tailscale-sidecar` | 8080, 8443 | `jarvis.YOUR_TAILNET.ts.net` |
+| **Production** | `nginx-proxy`, `open-webui2`, `tailscale-sidecar` | 8080 | `jarvis.YOUR_TAILNET.ts.net` |
 | **Beta** | `nginx-beta`, `open-webui-beta`, `tailscale-sidecar-beta` | 8081 | `jarvis-beta.YOUR_TAILNET.ts.net` |
 
 ## Key Points

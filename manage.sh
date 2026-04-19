@@ -132,8 +132,15 @@ function configure_serve() {
     local container=$1
     local port=$2
     
-    # Check if container exists (using docker inspect is more reliable)
+    # Check if container exists
     if ! docker inspect "$container" >/dev/null 2>&1; then
+        return
+    fi
+    
+    # Check if this container is already handling a VIP service (Integrated Registration)
+    # If so, we SKIP the legacy node-based serve config as it might conflict.
+    if docker exec "$container" tailscale serve status --json 2>/dev/null | grep -q "\"Services\": {"; then
+        echo "✅ $container is using integrated VIP registration. Skipping manual proxy config."
         return
     fi
     

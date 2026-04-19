@@ -13,7 +13,7 @@ services:
   # ============================================
   # Production - PINNED to stable version for reliability
   open-webui2:
-    image: ghcr.io/open-webui/open-webui:v0.7.2-ollama
+    image: ghcr.io/open-webui/open-webui:v0.8.12-ollama
     container_name: open-webui2
     ports:
       - "11434:11434"
@@ -23,29 +23,19 @@ services:
       - all
     environment:
       BACKEND_URL: http://localhost:8080/api
-      USE_OLLAMA_DOCKER: "true"
-      OLLAMA_BASE_URL: "http://127.0.0.1:11434"
-      ENABLE_OLLAMA_API: "true"
-      OLLAMA_HOST: "0.0.0.0"
+      OLLAMA_BASE_URL: http://localhost:11434
     volumes:
       - ollama:/root/.ollama
       - open-webui:/app/backend/data
     restart: always
     networks:
       - internal-prod
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 8G
-        reservations:
-          cpus: '2'
-          memory: 4G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
 
   tailscale-sidecar:
     image: tailscale/tailscale:v1.72.0
@@ -56,18 +46,23 @@ services:
       - prod
       - all
     environment:
-      TS_AUTHKEY: ${TS_AUTHKEY}
       TS_HOSTNAME: jarvis
       TS_ACCEPT_DNS: true
-      TS_STATE_DIR: /var/lib/tailscale
+      # VIP registration — override if defaults don't match your setup
+      APP_HEALTH_URL: ${APP_HEALTH_URL:-http://nginx-prod:80/health}
+      VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
+      VIP_BACKEND: ${VIP_BACKEND:-http://nginx-prod:80}
     volumes:
       - tailscale-sidecar-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
+      - ./production/tailscale-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
     restart: always
-    network_mode: host
+    networks:
+      - internal-prod
     env_file:
       - production/.env
     logging:
@@ -97,12 +92,13 @@ services:
         max-size: "10m"
         max-file: "3"
 
+
   # ============================================
   # BETA STACK
   # ============================================
   # Beta - ROLLING tag to always get latest features for testing
   open-webui-beta:
-    image: ghcr.io/open-webui/open-webui:main-ollama
+    image: ghcr.io/open-webui/open-webui:v0.8.12-ollama
     container_name: open-webui-beta
     ports:
       - "11435:11434"
@@ -112,10 +108,7 @@ services:
       - all
     environment:
       BACKEND_URL: http://localhost:8081/api
-      USE_OLLAMA_DOCKER: "true"
-      OLLAMA_BASE_URL: "http://127.0.0.1:11434"
-      ENABLE_OLLAMA_API: "true"
-      OLLAMA_HOST: "0.0.0.0"
+      OLLAMA_BASE_URL: http://localhost:11434
     volumes:
       - ollama-beta:/root/.ollama
       - open-webui-beta:/app/backend/data
@@ -142,25 +135,28 @@ services:
     image: tailscale/tailscale:v1.72.0
     container_name: tailscale-sidecar-beta
     hostname: jarvis-beta
-    network_mode: host
     privileged: true
     profiles:
       - beta
       - all
     environment:
-      TS_AUTHKEY: ${TS_AUTHKEY_BETA}
       TS_HOSTNAME: jarvis-beta
       TS_ACCEPT_DNS: true
-      TS_STATE_DIR: /var/lib/tailscale
+      # VIP registration — takeover the production service
+      APP_HEALTH_URL: ${APP_HEALTH_URL_BETA:-http://nginx-beta:80/health}
+      VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
+      VIP_BACKEND: ${VIP_BACKEND:-http://nginx-beta:80}
     volumes:
       - tailscale-sidecar-beta-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
-      - ./beta/tailscale-entrypoint.sh:/tailscale-entrypoint.sh:ro,z
-    entrypoint: ["/bin/sh", "/tailscale-entrypoint.sh"]
+      - ./production/tailscale-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
     restart: always
+    networks:
+      - internal-beta
     env_file:
       - beta/.env
     logging:

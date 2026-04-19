@@ -25,6 +25,7 @@ services:
       - all
     environment:
       BACKEND_URL: http://localhost:8080/api
+      OLLAMA_BASE_URL: http://localhost:11434
     volumes:
       - ollama:/root/.ollama
       - open-webui:/app/backend/data
@@ -101,6 +102,7 @@ services:
       - all
     environment:
       BACKEND_URL: http://localhost:8081/api
+      OLLAMA_BASE_URL: http://localhost:11434
     volumes:
       - ollama-beta:/root/.ollama
       - open-webui-beta:/app/backend/data

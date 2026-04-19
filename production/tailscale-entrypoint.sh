@@ -66,11 +66,27 @@ done
 echo "[ts-entrypoint] App healthy."
 
 # ── 4. Register VIP backend ──────────────────────────────────────────────────
-echo "[ts-entrypoint] Registering ${VIP_SERVICE} → ${VIP_BACKEND} ..."
-if tailscale_cli serve --bg --service="$VIP_SERVICE" "$VIP_BACKEND"; then
-  echo "[ts-entrypoint] VIP registered successfully. Monitoring for shutdown..."
+# Mode detection (https default)
+VIP_MODE="${VIP_MODE:-https}"
+
+echo "[ts-entrypoint] Registering ${VIP_SERVICE} (${VIP_MODE}) → ${VIP_BACKEND} ..."
+
+if [ "$VIP_MODE" = "http" ]; then
+    # Register purely as HTTP on port 80
+    if tailscale_cli serve --bg --service="$VIP_SERVICE" --http=80 "$VIP_BACKEND"; then
+        echo "[ts-entrypoint] VIP (HTTP) registered successfully. Monitoring for shutdown..."
+    else
+        echo "[ts-entrypoint] Failed to register VIP (HTTP)."
+        exit 1
+    fi
 else
-  echo "[ts-entrypoint] ERROR: VIP registration failed (check if node is tagged). Monitoring anyway..."
+    # Register as HTTPS on port 443 (default)
+    if tailscale_cli serve --bg --service="$VIP_SERVICE" "$VIP_BACKEND"; then
+        echo "[ts-entrypoint] VIP (HTTPS) registered successfully. Monitoring for shutdown..."
+    else
+        echo "[ts-entrypoint] Failed to register VIP (HTTPS)."
+        exit 1
+    fi
 fi
 
 # ── 5. Clean withdrawal on SIGTERM / SIGINT ──────────────────────────────────

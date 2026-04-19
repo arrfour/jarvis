@@ -53,6 +53,7 @@ services:
       APP_HEALTH_URL: ${APP_HEALTH_URL:-http://nginx-prod:80/health}
       VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
       VIP_BACKEND: ${VIP_BACKEND:-http://nginx-prod:80}
+      VIP_MODE: http
     volumes:
       - tailscale-sidecar-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
@@ -147,7 +148,8 @@ services:
       # VIP registration — takeover the production service
       APP_HEALTH_URL: ${APP_HEALTH_URL_BETA:-http://nginx-beta:80/health}
       VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
-      VIP_BACKEND: ${VIP_BACKEND:-http://nginx-beta:80}
+      VIP_BACKEND: ${VIP_BACKEND_BETA:-http://nginx-beta:80}
+      VIP_MODE: http
     volumes:
       - tailscale-sidecar-beta-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun

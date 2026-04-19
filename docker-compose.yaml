@@ -88,7 +88,7 @@ services:
   # BETA STACK
   # ============================================
   open-webui-beta:
-    image: ghcr.io/open-webui/open-webui:main-ollama
+    image: ghcr.io/open-webui/open-webui:v0.8.12
     container_name: open-webui-beta
     gpus:
         - driver: nvidia

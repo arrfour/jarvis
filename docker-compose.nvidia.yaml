@@ -1,0 +1,12 @@
+services:
+  open-webui2:
+    gpus:
+      - driver: nvidia
+        count: all
+        capabilities: ["gpu"]
+
+  open-webui-beta:
+    gpus:
+      - driver: nvidia
+        count: all
+        capabilities: ["gpu"]

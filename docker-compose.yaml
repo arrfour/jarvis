@@ -13,7 +13,7 @@ services:
   # PRODUCTION STACK
   # ============================================
   open-webui2:
-    image: ghcr.io/open-webui/open-webui:v0.8.12
+    image: ghcr.io/open-webui/open-webui:v0.8.12-ollama
     container_name: open-webui2
     gpus:
         - driver: nvidia
@@ -90,7 +90,7 @@ services:
   # BETA STACK
   # ============================================
   open-webui-beta:
-    image: ghcr.io/open-webui/open-webui:v0.8.12
+    image: ghcr.io/open-webui/open-webui:v0.8.12-ollama
     container_name: open-webui-beta
     gpus:
         - driver: nvidia

@@ -8,7 +8,7 @@ set -e
 # Error handler for better diagnostics
 trap 'echo "❌ Error on line $LINENO"; exit 1' ERR
 
-11: SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Auto-detect container runtime (Podman vs Docker)
 function detect_container_runtime() {

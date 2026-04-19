@@ -114,7 +114,6 @@ services:
     image: tailscale/tailscale:latest
     container_name: tailscale-sidecar-beta
     hostname: jarvis-beta
-    network_mode: host
     privileged: true
     profiles:
       - beta

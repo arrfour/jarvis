@@ -51,9 +51,9 @@ services:
       TS_ACCEPT_DNS: true
       TS_EPHEMERAL: "true"
       # VIP registration — override if defaults don't match your setup
-      APP_HEALTH_URL: ${APP_HEALTH_URL:-http://127.0.0.1:8080/health}
+      APP_HEALTH_URL: ${APP_HEALTH_URL:-http://nginx-prod:80/health}
       VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
-      VIP_BACKEND: ${VIP_BACKEND:-http://localhost:8080}
+      VIP_BACKEND: ${VIP_BACKEND:-http://nginx-prod:80}
     volumes:
       - tailscale-sidecar-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
@@ -63,7 +63,8 @@ services:
       - NET_ADMIN
       - SYS_MODULE
     restart: always
-    network_mode: host
+    networks:
+      - internal-prod
     env_file:
       - production/.env
 
@@ -123,9 +124,9 @@ services:
       TS_ACCEPT_DNS: true
       TS_EPHEMERAL: "true"
       # VIP registration — takeover the production service
-      APP_HEALTH_URL: ${APP_HEALTH_URL_BETA:-http://127.0.0.1:8081/health}
+      APP_HEALTH_URL: ${APP_HEALTH_URL_BETA:-http://nginx-beta:80/health}
       VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
-      VIP_BACKEND: ${VIP_BACKEND:-http://localhost:8081}
+      VIP_BACKEND: ${VIP_BACKEND:-http://nginx-beta:80}
     volumes:
       - tailscale-sidecar-beta-state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
@@ -135,6 +136,8 @@ services:
       - NET_ADMIN
       - SYS_MODULE
     restart: always
+    networks:
+      - internal-beta
     env_file:
       - beta/.env
 

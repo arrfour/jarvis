@@ -40,7 +40,7 @@ services:
       start_period: 45s
 
   tailscale-sidecar:
-    image: tailscale/tailscale:latest
+    image: tailscale/tailscale:unstable
     container_name: tailscale-sidecar
     hostname: jarvis
     privileged: true
@@ -50,6 +50,7 @@ services:
     environment:
       TS_HOSTNAME: jarvis
       TS_ACCEPT_DNS: true
+      TS_EXTRA_ARGS: "--advertise-tags=tag:server,tag:services"
       # VIP registration — override if defaults don't match your setup
       APP_HEALTH_URL: ${APP_HEALTH_URL:-http://nginx-prod:80/health}
       VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}
@@ -112,7 +113,7 @@ services:
       - internal-beta
 
   tailscale-sidecar-beta:
-    image: tailscale/tailscale:latest
+    image: tailscale/tailscale:unstable
     container_name: tailscale-sidecar-beta
     hostname: jarvis-beta
     privileged: true
@@ -122,6 +123,7 @@ services:
     environment:
       TS_HOSTNAME: jarvis-beta
       TS_ACCEPT_DNS: true
+      TS_EXTRA_ARGS: "--advertise-tags=tag:server,tag:services"
       # VIP registration — takeover the production service
       APP_HEALTH_URL: ${APP_HEALTH_URL_BETA:-http://nginx-beta:80/health}
       VIP_SERVICE: ${VIP_SERVICE:-svc:jarvis}

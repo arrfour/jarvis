@@ -16,7 +16,7 @@
 
 set -e
 
-APP_HEALTH_URL="${APP_HEALTH_URL:-http://localhost:8080/health}"
+APP_HEALTH_URL="${APP_HEALTH_URL:-http://127.0.0.1:8080/health}"
 VIP_SERVICE="${VIP_SERVICE:-svc:jarvis}"
 VIP_BACKEND="${VIP_BACKEND:-https://localhost:443}"
 TS_READY_TIMEOUT="${TS_READY_TIMEOUT:-60}"

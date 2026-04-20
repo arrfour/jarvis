@@ -24,6 +24,14 @@ This guide helps you deploy Jarvis from WSL Ubuntu to a standalone Linux server 
 ### Prerequisites on Target Server
 
 ```bash
+# Option A: Automated Setup (Recommended)
+# Clone repo first
+git clone https://github.com/arrfour/jarvis.git
+cd jarvis/ansible
+ansible-galaxy install -r requirements.yml
+ansible-playbook playbooks/site.yml --tags setup -e "install_docker=true install_compose=true"
+
+# Option B: Manual Setup
 # Update system
 sudo apt update && sudo apt upgrade -y
 
@@ -41,6 +49,7 @@ newgrp docker
 
 # Install Tailscale
 curl -fsSL https://tailscale.com/install.sh | sh
+
 ```
 
 ### Step 1: Transfer Repository

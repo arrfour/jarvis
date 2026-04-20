@@ -52,7 +52,7 @@ tailscale serve-config production/tailscale-serve-config.json
 
 1. **Reusable/Ephemeral Auth Keys** - These auto-approve containers but don't auto-configure Serve
 2. **Tailscale Serve requires CLI configuration** - Cannot be set via environment variables alone
-3. **Network isolation** - The tailscale-sidecar container has `network_mode: host` to reach localhost services
+3. **Network isolation** - The tailscale-sidecar container shares the `internal-prod` bridge network and reaches nginx via the `nginx-prod` hostname
 
 ### Testing Connectivity
 
@@ -92,3 +92,74 @@ All should return the Open WebUI HTML page.
 - Tailscale Serve not configured
 - Firewall blocking traffic
 - DNS not resolving (check `tailscale status`)
+
+---
+
+## VIP Registration (built into `tailscale-sidecar`)
+
+VIP registration runs inside the `tailscale-sidecar` container via a custom entrypoint script (`production/tailscale-entrypoint.sh`). It starts the Tailscale daemon, polls the app's health endpoint, registers with `svc:jarvis`, and withdraws cleanly on `docker compose down`. No host-native Tailscale installation is required.
+
+### VIP never registers / sidecar stuck at health poll
+
+**Check entrypoint logs:**
+```bash
+docker logs tailscale-sidecar
+```
+Look for `[ts-entrypoint]` prefixed lines showing progress.
+
+**App health poll stalling** — the script polls `http://nginx-prod:80/health` (bridge network). Check that nginx is up and the app is healthy:
+```bash
+# From the sidecar container (bridge network):
+docker exec tailscale-sidecar wget -qO- http://nginx-prod:80/health
+
+# From the host (via mapped port):
+curl -fsS http://localhost:8080/health
+
+# Full healthcheck status:
+docker inspect open-webui2 --format '{{json .State.Health}}' | python3 -m json.tool
+```
+
+If the health endpoint path differs, override in `production/.env`:
+```bash
+APP_HEALTH_URL=http://nginx-prod:80/
+```
+
+**Tailscale not authenticating** — if logs show daemon timeout, check the auth key in `production/.env` is valid and not expired. Rotate at https://login.tailscale.com/admin/settings/keys.
+
+**Missing `tag:services` ACL tag** — the host must hold `tag:services` and `svc:jarvis` must allow that tag in the Tailscale control plane. Verify at https://login.tailscale.com/admin/acls.
+
+### VIP stays registered after `docker compose down`
+
+The SIGTERM trap in the entrypoint script should withdraw the VIP automatically with a 10s grace window. If it doesn't:
+
+```bash
+# Manually withdraw via the running container (if still up):
+docker exec tailscale-sidecar tailscale serve --service=svc:jarvis --remove http://nginx-prod:80
+
+# In http (dual-port) mode, also remove the TCP/443 backend:
+docker exec tailscale-sidecar tailscale serve --service=svc:jarvis --remove tcp://nginx-prod:80
+
+# Confirm it's cleared:
+docker exec tailscale-sidecar tailscale serve status
+```
+
+### VIP registered but traffic not reaching app
+
+- Confirm `open-webui2` passed its healthcheck: `docker inspect open-webui2 --format '{{json .State.Health}}'`
+- Confirm Nginx is running: `docker ps | grep nginx-proxy`
+- Check Nginx is reachable from the host: `curl -fsS http://localhost:8080/health`
+- Confirm VIP backend: `docker exec tailscale-sidecar tailscale serve status` — should show `svc:jarvis → http://nginx-prod:80` (or TCP in dual-port mode)
+
+### Overriding VIP defaults
+
+All three registration parameters are configurable via `production/.env` without touching the compose file:
+
+```bash
+APP_HEALTH_URL=http://nginx-prod:80/health   # default (bridge network)
+VIP_SERVICE=svc:jarvis                       # default
+VIP_BACKEND=http://nginx-prod:80             # default (bridge network)
+```
+
+### Known limitation (v1)
+
+If `open-webui2` crashes *after* the VIP is registered, the VIP stays advertised (the entrypoint is in `wait` and unaware of app health changes post-registration). Liveness re-checking is planned for v2.

@@ -36,9 +36,12 @@ cd ansible
 # Install required Ansible collections
 ansible-galaxy install -r requirements.yml
 
-# Verify prerequisites (Docker, Docker Compose, directories)
-ansible-playbook playbooks/site.yml --tags setup
+# Verify prerequisites and install missing ones
+ansible-playbook playbooks/site.yml --tags setup -e "install_docker=true install_compose=true"
 ```
+
+> **Note**: The setup role supports Debian/Ubuntu, Fedora/RHEL, and Arch Linux.
+
 
 ### Basic Usage
 
@@ -133,13 +136,19 @@ ansible/
 
 ### Setup Role
 
-Verifies prerequisites:
+Verifies and optionally installs prerequisites:
 - Docker installation
 - Docker Compose availability
 - User docker group membership
 - Required directories
+- `dialog` package (for TUI)
 
-Run with: `ansible-playbook playbooks/site.yml --tags setup`
+Variables:
+- `install_docker`: Set to `true` to install Docker (default: `false`)
+- `install_compose`: Set to `true` to install Docker Compose (default: `false`)
+
+Run with: `ansible-playbook playbooks/site.yml --tags setup -e "install_docker=true"`
+
 
 ### Environment Role
 

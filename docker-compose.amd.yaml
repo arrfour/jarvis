@@ -1,0 +1,70 @@
+# AMD GPU Override - Uses separate Ollama ROCm container
+# The bundled open-webui:*-ollama images don't include ROCm support
+# so we split into: Ollama (ROCm) + Open WebUI (no Ollama)
+
+services:
+  # Production: Override to non-bundled image + separate Ollama
+  open-webui2:
+    image: ghcr.io/open-webui/open-webui:v0.7.2
+    # Clear port mapping - Ollama is now a separate container
+    ports: []
+    environment:
+      OLLAMA_BASE_URL: "http://ollama-prod:11434"
+      USE_OLLAMA_DOCKER: "false"
+    depends_on:
+      - ollama-prod
+
+  ollama-prod:
+    image: ollama/ollama:rocm
+    container_name: ollama-prod
+    profiles:
+      - prod
+      - all
+    # Privileged mode required for rootless Podman GPU access
+    privileged: true
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    environment:
+      # RDNA 4 (gfx1200) needs this override for proper GPU detection
+      HSA_OVERRIDE_GFX_VERSION: "${HSA_OVERRIDE_GFX_VERSION:-12.0.0}"
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: always
+    networks:
+      - internal-prod
+
+  # Beta: Override to non-bundled image + separate Ollama
+  open-webui-beta:
+    image: ghcr.io/open-webui/open-webui:main
+    # Clear port mapping - Ollama is now a separate container
+    ports: []
+    environment:
+      OLLAMA_BASE_URL: "http://ollama-beta:11434"
+      USE_OLLAMA_DOCKER: "false"
+    depends_on:
+      - ollama-beta
+
+  ollama-beta:
+    image: ollama/ollama:rocm
+    container_name: ollama-beta
+    profiles:
+      - beta
+      - all
+    # Privileged mode required for rootless Podman GPU access
+    privileged: true
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    environment:
+      # RDNA 4 (gfx1200) needs this override for proper GPU detection
+      HSA_OVERRIDE_GFX_VERSION: "${HSA_OVERRIDE_GFX_VERSION:-12.0.0}"
+    volumes:
+      - ollama-beta:/root/.ollama
+    ports:
+      - "11435:11434"
+    restart: always
+    networks:
+      - internal-beta

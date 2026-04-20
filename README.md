@@ -2,91 +2,92 @@
 
 A dual-stack (production + beta) containerized deployment of **Open WebUI** with **Ollama** support, securely accessible via **Tailscale** with automatically-issued valid HTTPS certificates. No port forwarding. No self-signed warnings. Pure private network security.
 
+**Current Version:** `v1.1.0` - Security Hardening & Stability Release
+
 ## ✨ Features
 
 - 🤖 **Open WebUI** - Modern web interface for LLM chat and interactions
 - 🧠 **Ollama Backend** - Local LLM runtime with persistent models
 - 🔐 **Tailscale Integration** - End-to-end encrypted private network (no port forwarding needed)
-- ✅ **Valid HTTPS Certificates** - Automatic Let's Encrypt certs via Tailscale Serve (zero warnings)
+- ✅ **Valid HTTPS Certificates** - Automatic certs via Tailscale Serve (zero warnings; currently using HTTP mode while ACME rate limit recovers — see TROUBLESHOOTING.md)
 - 🔄 **Dual-Stack Architecture** - Production and beta environments running independently
 - 🎨 **Visual Differentiation** - Beta marked with red branding for quick identification
 - 📦 **Docker Compose** - Reproducible, version-controlled infrastructure
-- 🛠️ **Easy Management** - Bash `manage.sh` script OR Ansible automation for enterprise deployments
-- 🚀 **Ansible Automation** - One-command deployment to remote Linux servers with `make deploy`
+- 🛠️ **Interactive TUI** - Beautiful terminal interface with keyboard navigation
+- 🎛️ **Ansible Automation** - Enterprise-grade declarative operations
+- 🛡️ **Security Hardened** - 12 critical security & stability improvements in v1.1.0
+
+## 🚀 What's New in v1.1.0
+
+**Security Hardening Release** with comprehensive improvements:
+
+### 🔒 Security Enhancements
+- **Security Headers** - HTTP headers added (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection) to prevent clickjacking and injection attacks
+- **Tailscale Image** - Sidecars use `tailscale/tailscale:unstable` to access the `--service` VIP flag not yet in stable releases; operators should expect upstream changes on upgrade
+- **Safe Configuration Parsing** - Robust YAML parsing prevents injection vulnerabilities in image version detection
+
+### 🛡️ Stability & Resource Management
+- **Resource Limits** - CPU (4 cores) and memory (8GB) limits enforced per container to prevent OOM crashes
+- **Robust Error Handling** - Error traps with line-number reporting for faster diagnostics
+- **Improved Container Detection** - Fixed race conditions in Tailscale readiness checks
+
+### 🔧 Operational Improvements
+- **Consistent Networking** - Production and beta stacks now use identical network modes for reliability
+- **Dynamic Volume Management** - Stack destruction now safely handles volumes even if project directory is renamed
+- **Better TUI Feedback** - Dialog now distinguishes between user cancellations and actual errors
+- **Optimized Log Parsing** - Robust image tag parsing prevents configuration errors from YAML format changes
+
+### ⚡ Performance Optimizations
+- **TUI Cleanup** - Removed unnecessary temporary file operations (faster startup)
+- **Consistent Tailscale Configuration** - Both prod and beta use identical HTTPS/HTTP proxying syntax
 
 ## 🏗️ Architecture
 
 ```
 jarvis/
-├── 📋 Configuration & Management
-│   ├── docker-compose.yaml          ← Root unified orchestration (both stacks)
-│   ├── manage.sh                    ← Bash CLI tool (legacy, still supported)
-│   ├── .env                         ← Root environment template
-│   ├── .gitignore                   ← Secrets protection
-│   └── certs/                       ← SSL certificates (auto-generated)
-│
-├── 🤖 Ansible Automation (Recommended for deployments)
-│   ├── ansible/
-│   │   ├── README.md                ← Ansible setup and usage guide
-│   │   ├── IMPLEMENTATION.md        ← Technical implementation details
-│   │   ├── Makefile                 ← Easy command interface (make deploy, etc.)
-│   │   ├── quickstart.sh            ← One-command deployment script
-│   │   ├── requirements.yml         ← Ansible dependencies
-│   │   ├── ansible.cfg              ← Ansible configuration
-│   │   ├── inventory/
-│   │   │   └── hosts.yml            ← Target hosts configuration
-│   │   ├── playbooks/
-│   │   │   ├── site.yml             ← Master playbook (calls all roles)
-│   │   │   ├── start.yml            ← Start stacks
-│   │   │   ├── stop.yml             ← Stop stacks
-│   │   │   ├── restart.yml          ← Restart stacks
-│   │   │   └── status.yml           ← Check stack status
-│   │   └── roles/
-│   │       ├── setup/               ← Install Docker, Tailscale dependencies
-│   │       ├── environment/         ← Configure .env files
-│   │       └── stack/               ← Deploy and manage stacks
-│   │
-│   └── ANSIBLE_MIGRATION.md         ← Guide for adopting Ansible workflow
+├── 📋 Core Management
+│   ├── docker-compose.yaml          ← Root unified orchestration
+│   ├── docker-compose.nvidia.yaml   ← GPU override (NVIDIA)
+│   ├── docker-compose.amd.yaml      ← GPU override (AMD)
+│   ├── tui.sh                       ← Interactive TUI (recommended)
+│   ├── manage.sh                    ← CLI tool + TUI launcher
+│   └── .gitignore                   ← Secrets protection
 │
 ├── 🐳 Docker Stack Configurations
-│   ├── production/                  ← Production stack (main deployment)
-│   │   ├── docker-compose.yaml      ← Compose file for production
-│   │   ├── nginx.conf               ← Nginx reverse proxy config
-│   │   ├── README.md                ← Production-specific docs
-│   │   ├── .env                     ← Production auth key (gitignored)
-│   │   └── .env.example             ← Template for setup
+│   ├── production/                  ← Production stack (pinned versions)
+│   │   ├── docker-compose.yaml      ← Prod-specific overrides
+│   │   ├── nginx.conf               ← Reverse proxy config
+│   │   ├── README.md                ← Prod documentation
+│   │   └── .env.example             ← Template for auth keys
 │   │
-│   ├── beta/                        ← Beta stack (testing/development)
-│   │   ├── docker-compose.yaml      ← Compose file for beta
-│   │   ├── nginx.conf               ← Nginx reverse proxy config
-│   │   ├── README.md                ← Beta-specific docs
-│   │   ├── assets/                  ← Red branding (favicon + logo)
-│   │   ├── .env                     ← Beta auth key (gitignored)
-│   │   └── .env.example             ← Template for setup
-│   │
-│   └── shared/                      ← Shared resources (future use)
+│   └── beta/                        ← Beta stack (latest features)
+│       ├── docker-compose.yaml      ← Beta-specific overrides
+│       ├── nginx.conf               ← Reverse proxy config
+│       ├── tailscale-entrypoint.sh  ← Custom Tailscale startup
+│       ├── assets/                  ← Red branding (favicon + logo)
+│       ├── README.md                ← Beta documentation
+│       └── .env.example             ← Template for auth keys
+│
+├── 🤖 Ansible Automation (Optional)
+│   ├── README.md                    ← Ansible setup guide
+│   ├── IMPLEMENTATION.md            ← Technical details
+│   ├── Makefile                     ← Easy command interface
+│   ├── quickstart.sh                ← One-command deployment
+│   ├── ansible.cfg                  ← Ansible configuration
+│   ├── playbooks/                   ← Start/stop/status/restart
+│   └── roles/                       ← Setup, environment, stack
 │
 └── 📚 Documentation
     ├── README.md                    ← Main overview (you are here!)
-    ├── DEPLOYMENT.md                ← Portability & Linux server deployment
+    ├── USER_GUIDE.md                ← User-facing guide for chat access
+    ├── CLAUDE.md                    ← Project instructions for Claude Code
+    ├── DEPLOYMENT.md                ← Server deployment guide
+    ├── DEVELOPMENT.md               ← Dev workflow & git practices
     ├── TROUBLESHOOTING.md           ← Common issues and fixes
-    ├── DEVELOPMENT.md               ← Development workflow & git practices
-    ├── STACK_MANAGEMENT.md          ← Deep dive into manual operations
-    ├── BETA_QUICKSTART.md           ← Daily beta testing checklist
-    └── ANSIBLE_MIGRATION.md         ← Migration from bash to Ansible
+    ├── STACK_MANAGEMENT.md          ← Manual Docker operations
+    ├── BETA_QUICKSTART.md           ← Beta testing checklist
+    └── ANSIBLE_MIGRATION.md         ← Ansible workflow guide
 ```
-
-### 🎯 Quick Navigation
-
-| Need to... | Start here |
-|-----------|-----------|
-| **Deploy to new server** | `ansible/README.md` → `bash quickstart.sh` |
-| **Manage locally (WSL/Linux)** | `./manage.sh help` (bash CLI) |
-| **Troubleshoot issues** | `TROUBLESHOOTING.md` |
-| **Develop new features** | `DEVELOPMENT.md` |
-| **Deploy production** | `DEPLOYMENT.md` or `ansible/Makefile` |
-| **Understand architecture** | This section + `ANSIBLE_MIGRATION.md` |
-| **Run beta tests** | `BETA_QUICKSTART.md` |
 
 ## 🚀 Quick Start
 
@@ -97,11 +98,10 @@ jarvis/
 - **Tailscale Auth Keys** - Generate 2 (one for prod, one for beta)
   - Go to: https://login.tailscale.com/admin/settings/keys
   - Create with **Reusable** + **Ephemeral** options enabled
-  - Auto-approves devices for 90 days
 
 ### Initial Setup (5 minutes)
 
-**1. Clone or extract the repository**
+**1. Clone/extract the repository**
 ```bash
 cd /path/to/jarvis
 ```
@@ -122,7 +122,7 @@ nano beta/.env            # Add TS_AUTHKEY_BETA=tskey-auth-yyyyy
 ```
 
 **4. Access your stacks**
-- **Production:** `https://jarvis.YOUR_TAILNET.ts.net` (replace `YOUR_TAILNET` with your actual Tailnet name)
+- **Production:** `https://jarvis.YOUR_TAILNET.ts.net`
 - **Beta:** `https://jarvis-beta.YOUR_TAILNET.ts.net` (red branding)
 - **Local HTTP:** `http://localhost:8080` (prod), `http://localhost:8081` (beta)
 
@@ -130,11 +130,31 @@ Done! Both stacks are now running.
 
 ## 📋 Stack Management
 
-You have **two options** for managing stacks:
+You have **three options** for managing stacks:
 
-### Option 1: Bash Script (Quick & Simple)
+### Option 1: Interactive TUI (Recommended)
 
-The `manage.sh` script provides quick, intuitive commands:
+Beautiful keyboard-driven interface with status dashboard:
+
+```bash
+# Install dialog (one-time)
+sudo apt install dialog     # Debian/Ubuntu
+sudo dnf install dialog     # Fedora
+
+# Launch TUI
+./manage.sh                 # Auto-launches when no args
+./tui.sh                    # Direct TUI launch
+```
+
+**Features:**
+- 🎹 Keyboard navigation (arrow keys + Enter)
+- 📊 Real-time status dashboard with health icons
+- 📋 Live log streaming
+- ⚠️ Confirmation dialogs for destructive operations
+
+### Option 2: CLI Commands (Quick & Simple)
+
+Direct command execution without TUI:
 
 ```bash
 ./manage.sh start          # Start both stacks
@@ -143,7 +163,7 @@ The `manage.sh` script provides quick, intuitive commands:
 ./manage.sh help           # Show all commands
 ```
 
-### Option 2: Ansible (Infrastructure as Code)
+### Option 3: Ansible (Infrastructure as Code)
 
 For idempotent, declarative operations:
 
@@ -157,60 +177,29 @@ make status                # Check status
 
 See [ansible/README.md](ansible/README.md) for full Ansible documentation.
 
-**Both approaches work side-by-side** - use whichever fits your workflow!
+## 📊 Common Tasks
 
-### The `manage.sh` Command Reference
-
-**Recommended for quick operations.**
-
-### Start/Stop Commands
-
+### Check stack health
 ```bash
-./manage.sh start              # 🚀 Start both production and beta
-./manage.sh start-prod         # 🚀 Start only production
-./manage.sh start-beta         # 🚀 Start only beta
-./manage.sh stop               # 🛑 Stop both stacks
-./manage.sh stop-prod          # 🛑 Stop only production
-./manage.sh stop-beta          # 🛑 Stop only beta
+./manage.sh status
 ```
 
-### Restart Commands
-
-## 🎯 Real-World Workflows
-
-### Scenario 1: Testing a Feature in Beta
-
-1. Code changes go to `develop` branch
-2. Deploy to beta stack: `./manage.sh start-beta`
-3. Test at `https://jarvis-beta.YOUR_TAILNET.ts.net` (red branding = you know it's beta)
-4. Review changes: `git diff main develop`
-5. Merge to main when ready: Create PR or `git merge develop`
-6. Deploy to prod: `./manage.sh restart-prod`
-
-### Scenario 2: Emergency Rollback
-
+### View logs
 ```bash
-# View all versions
-git tag -l | sort -V
-
-# Rollback to specific version
-git checkout v2025.12.6.002
-./manage.sh start-prod
-
-# Or return to current
-git checkout main
-./manage.sh start-prod
+./manage.sh logs          # All stacks
+./manage.sh logs-prod     # Production only
+./manage.sh logs-beta     # Beta only
 ```
 
-### Scenario 3: Updating Ollama Models
-
+### Update a model in Ollama
 ```bash
-# Connect to Ollama in production
-docker exec -it ollama ollama list          # See installed models
-docker exec -it ollama ollama pull llama2   # Download new model
+docker exec -it open-webui2 ollama pull llama2
+docker exec -it open-webui-beta ollama pull mistral
+```
 
-# Same for beta
-docker exec -it ollama-beta ollama pull mistral
+### Stop all stacks
+```bash
+./manage.sh stop
 ```
 
 ## 🌍 Access from Outside Your Machine
@@ -228,143 +217,52 @@ Since everything runs on Tailscale, you can access it from **any device on your 
 
 3. **From mobile (iOS/Android Tailscale app):**
    - Install Tailscale app
-   - Enable "Allow incoming connections"
    - Same FQDN works
 
-## 🐳 Docker Compose Profiles Explained
+## 🐳 Docker Compose Profiles
 
-The root `docker-compose.yaml` uses **profiles** to run multiple stacks:
+The root `docker-compose.yaml` uses **profiles** to manage multiple stacks:
 
 ```bash
-# Start both (prod + beta)
-docker-compose --profile all up -d
-
-# Start only production
-docker-compose --profile prod up -d
-
-# Start only beta
-docker-compose --profile beta up -d
+docker-compose --profile all up -d    # Both prod + beta
+docker-compose --profile prod up -d   # Production only
+docker-compose --profile beta up -d   # Beta only
 ```
-
-**Why profiles?** Allows one file to manage multiple independent stacks without conflicts.
 
 Use `manage.sh` to avoid remembering these flags.
 
-## 🔄 Environment Variables
-
-### Production (`.env` in `production/` directory)
-```bash
-TS_AUTHKEY=tskey-auth-xxxxxxxxx    # Tailscale auth key for prod
-```
-
-### Beta (`.env` in `beta/` directory)
-```bash
-TS_AUTHKEY_BETA=tskey-auth-yyyyy    # Tailscale auth key for beta
-```
-
-Both are **gitignored** (never committed). Template versions (`.env.example`) are in git for reference.
-
 ## 📚 Documentation
 
-**Choose your path:**
-
-### 🚀 New Deployments (Recommended: Ansible)
-- [`ansible/README.md`](./ansible/README.md) - **Deploy to remote Linux servers** - Ansible automation guide
-- [`ANSIBLE_MIGRATION.md`](./ANSIBLE_MIGRATION.md) - Migration guide from bash to Ansible
-
-### 💻 Local Development (Bash CLI)
-- [`README.md`](./README.md) - **Overview and quick start** (you're reading it)
-- [`DEVELOPMENT.md`](./DEVELOPMENT.md) - Development workflow and git practices
-- [`BETA_QUICKSTART.md`](./BETA_QUICKSTART.md) - Daily beta testing checklist
-
-### 📖 Reference & Operations
-- [`DEPLOYMENT.md`](./DEPLOYMENT.md) - Portability guide and manual Linux deployment
-- [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md) - Common issues and fixes
-- [`STACK_MANAGEMENT.md`](./STACK_MANAGEMENT.md) - Deep dive into manual Docker operations
-
-## 🆘 Troubleshooting
-
-### HTTPS not working?
-See [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md#https-access-not-working)
-
-### Containers won't start?
-```bash
-./manage.sh logs      # Check all logs
-./manage.sh status    # Check container status
-```
-
-### Models not persisting?
-Check volume mounts:
-```bash
-docker volume ls | grep jarvis
-docker volume inspect jarvis_ollama
-```
-
-### Serve configuration lost after restart?
-Restart handles this automatically:
-```bash
-./manage.sh restart-prod
-```
-
-## 🛠️ Manual Docker Commands (Advanced)
-
-For power users who want direct control:
-
-```bash
-# Direct Compose commands (from root directory)
-docker-compose --profile prod config          # Show prod config
-docker-compose --profile prod logs -f         # Follow prod logs
-docker-compose --profile prod restart         # Restart prod
-
-# Direct service access
-docker exec open-webui2 bash                  # Shell into production Open WebUI
-docker exec tailscale-sidecar tailscale status   # Check Tailscale status
-```
-
-## 📊 Monitoring
-
-### Check stack health
-```bash
-./manage.sh status
-```
-
-### View real-time logs
-```bash
-./manage.sh logs          # All
-./manage.sh logs-prod     # Production only
-./manage.sh logs-beta     # Beta only
-```
-
-### Validate configuration
-```bash
-./manage.sh validate
-```
-
-This checks syntax without starting containers.
+- **[USER_GUIDE.md](./USER_GUIDE.md)** - For end users accessing JARVIS
+- **[CLAUDE.md](./CLAUDE.md)** - Project overview and architecture for developers
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Development workflow and git practices
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deploy to remote Linux servers
+- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and fixes
+- **[STACK_MANAGEMENT.md](./STACK_MANAGEMENT.md)** - Deep dive into manual operations
+- **[ansible/README.md](./ansible/README.md)** - Ansible automation guide
 
 ## 🚀 Performance Tips
 
-1. **GPU Support**: Both stacks have `gpus: all` enabled. Works on NVIDIA only.
-   - Remove from `docker-compose.yaml` if you don't have GPU
+1. **GPU Support**: Automatically detected (NVIDIA or AMD)
+   - Use `./manage.sh start --cpu` to force CPU-only mode
 
 2. **Model Management**: Ollama models stored in persistent volumes
-   - Production models: `docker volume inspect jarvis_ollama`
-   - Beta models: `docker volume inspect jarvis_ollama-beta`
+   - Production: `docker volume inspect jarvis_ollama`
+   - Beta: `docker volume inspect jarvis_ollama-beta`
 
-3. **Memory**: Open WebUI + Ollama can be resource-intensive
-   - Monitor with: `docker stats`
+3. **Memory**: Monitor with `docker stats`
 
 ## 🔐 Security Notes
 
-- ✅ All traffic encrypted (Tailscale VPN + Tailscale Serve HTTPS)
+- ✅ All traffic encrypted (Tailscale VPN + HTTPS)
 - ✅ No port forwarding needed
 - ✅ Valid certificates (no self-signed warnings)
 - ✅ Auth keys expire and auto-approve (90 days)
-- ✅ Tailnet-only access (private network)
+- ✅ Hardened with security headers (XSS, clickjacking protection)
 
 **Best Practices:**
 1. Regenerate auth keys periodically
-2. Keep Tailscale updated: `tailscale update`
+2. Keep Tailscale updated
 3. Review connected devices: https://login.tailscale.com/admin/machines
 4. Use separate keys for prod and beta
 
@@ -372,17 +270,36 @@ This checks syntax without starting containers.
 
 This repo tracks:
 - ✅ Configuration files (docker-compose.yaml, nginx.conf)
-- ✅ Deployment scripts (manage.sh)
+- ✅ Deployment scripts (manage.sh, tui.sh)
 - ✅ Documentation
 - ❌ `.env` files (gitignored - contains secrets)
 - ❌ Volumes/data (handled by Docker)
 
-### Current Release
-- **Version**: v2025.12.6.003 (tagged in git)
+**Current Release:**
+- **Version**: v1.1.0 (Security Hardening & Stability Release)
 - **Branch**: `main` (production-stable)
-- **Development**: `develop` branch
+- **Previous**: v2025.12.6.003
 
 View all releases: `git tag -l | sort -V`
+
+## 🆘 Troubleshooting
+
+**Issue:** Can't connect to `jarvis.YOUR_TAILNET.ts.net`
+- Verify device is approved in Tailscale admin
+- Check: `./manage.sh status`
+- View logs: `./manage.sh logs`
+
+**Issue:** Models not persisting?
+```bash
+docker volume ls | grep jarvis
+docker volume inspect jarvis_ollama
+```
+
+**Issue:** Slow responses?
+- Try a smaller model
+- Check GPU is being used: `./manage.sh monitor-gpu`
+
+**More issues?** See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 
 ## 🎓 Learning Resources
 
@@ -391,73 +308,17 @@ View all releases: `git tag -l | sort -V`
 - [Open WebUI GitHub](https://github.com/open-webui/open-webui)
 - [Ollama Documentation](https://ollama.ai)
 
-## 📞 Support
-
-Having issues?
-1. Check [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md)
-2. Run `./manage.sh logs` to see what's happening
-3. Search GitHub issues: https://github.com/open-webui/open-webui/issues
-
-## 🆘 Troubleshooting
-
-### Device won't approve in Tailscale Admin
-- Verify auth key is valid and reusable
-- Check Tailscale logs: `docker compose logs tailscale-sidecar`
-- Wait a few seconds and refresh the admin panel
-
-### Can't connect to `jarvis.YOUR_TAILNET.ts.net`
-- Try the direct IP: `https://100.x.x.x:8443`
-- Verify device is approved in Tailscale admin
-- Clear browser cookies and try again
-- Check: `docker compose ps` (all containers should be running)
-
-### ERR_TOO_MANY_REDIRECTS
-- Clear browser cookies for the domain
-- Restart Nginx: `docker compose restart nginx`
-
-### 502 Bad Gateway
-- Check Open WebUI is healthy: `docker compose ps`
-- View Nginx logs: `docker compose logs nginx`
-### SSL Certificate Warnings
-
-**There should be none!** Tailscale provides valid HTTPS certificates automatically on your Tailnet domain. Access `https://jarvis.YOUR_TAILNET.ts.net` and your browser should trust the certificate immediately.
-- Click "Advanced" → "Proceed" in your browser
-- To avoid warnings, use a valid certificate from Let's Encrypt (requires public domain)
-
-## 🚀 Scaling - Adding More Services
-
-1. Add service to `compose.yaml` on the `internal` network
-2. Update `nginx.conf` with a new location block:
-   ```nginx
-   location /service-path/ {
-       proxy_pass http://service-name:port/;
-       proxy_set_header Host $host;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       # ... other headers
-   }
-   ```
-3. Restart Nginx: `docker compose up -d nginx`
-
-## 📝 Notes
-
-- All container communication happens on the internal Docker bridge network (`172.19.0.0/16`)
-- Only Tailscale and Nginx are exposed externally
-- Ollama models are stored in the `ollama` volume
-- Open WebUI data is persisted in the `open-webui` volume
-- No data leaves your device without going through Tailscale's encrypted tunnel
-
-## 📚 Resources
-
-- [Tailscale Docs](https://tailscale.com/kb)
-- [Open WebUI GitHub](https://github.com/open-webui/open-webui)
-- [Ollama Documentation](https://ollama.ai)
-- [Nginx Docs](https://nginx.org/en/docs/)
-- [Docker Compose Reference](https://docs.docker.com/compose/compose-file/)
-
 ## 📄 License
 
 MIT License - Feel free to use, modify, and share
-## 📝 Version History
 
-- **v2025.12.6.001** - Initial release with Tailscale-managed valid HTTPS certificates (zero warnings)
+## 📝 Changelog
+
+- **v1.1.0** - Security hardening: 12 critical improvements (headers, pinned deps, resource limits, error handling, etc.)
+- **v2025.12.6.003** - Code review remediations
+- **v2025.12.6.002** - Fixed logging and cert rotation
+- **v2025.12.6.001** - Initial release with Tailscale HTTPS certificates
+
+---
+
 Found a bug or have an improvement? Submit a pull request or open an issue on GitHub.

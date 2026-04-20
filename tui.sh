@@ -9,6 +9,17 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANAGE_SCRIPT="$SCRIPT_DIR/manage.sh"
 
+run_compose() {
+    if docker compose version &>/dev/null 2>&1; then
+        docker compose "$@"
+    elif command -v docker-compose &>/dev/null; then
+        docker-compose "$@"
+    else
+        echo "Docker Compose is not installed"
+        return 1
+    fi
+}
+
 # Colors for status indicators
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -38,10 +49,10 @@ get_status_icon() {
     local status=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "not_found")
     
     case "$status" in
-        running)  echo "🟢" ;;
-        exited)   echo "🔴" ;;
-        starting) echo "🟡" ;;
-        *)        echo "⚪" ;;
+        running)             echo "🟢" ;;
+        exited)              echo "🔴" ;;
+        created|restarting)  echo "🟡" ;;
+        *)                   echo "⚪" ;;
     esac
 }
 
@@ -84,7 +95,7 @@ get_health_summary() {
 # Show status dashboard
 show_status_dashboard() {
     local status_info
-    status_info=$(docker compose -f "$SCRIPT_DIR/docker-compose.yaml" --profile all ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "No containers running")
+    status_info=$(run_compose -f "$SCRIPT_DIR/docker-compose.yaml" --profile all ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "No containers running")
     
     dialog --title "📊 Stack Status Dashboard" \
            --msgbox "$status_info\n\n$(get_health_summary)" \
@@ -101,7 +112,7 @@ start_menu() {
                     "2" "Start Production Only" \
                     "3" "Start Beta Only" \
                     "4" "← Back to Main Menu" \
-                    3>&1 1>&2 2>&3)
+                    3>&1 1>&2 2>&3) || true
     
     case "$choice" in
         1) run_with_output "start" ;;
@@ -121,7 +132,7 @@ stop_menu() {
                     "2" "Stop Production Only" \
                     "3" "Stop Beta Only" \
                     "4" "← Back to Main Menu" \
-                    3>&1 1>&2 2>&3)
+                    3>&1 1>&2 2>&3) || true
     
     case "$choice" in
         1) run_with_output "stop" ;;
@@ -141,7 +152,7 @@ restart_menu() {
                     "2" "Restart Production Only" \
                     "3" "Restart Beta Only" \
                     "4" "← Back to Main Menu" \
-                    3>&1 1>&2 2>&3)
+                    3>&1 1>&2 2>&3) || true
     
     case "$choice" in
         1) run_with_output "restart" ;;
@@ -161,7 +172,7 @@ logs_menu() {
                     "2" "Production Only (live streaming)" \
                     "3" "Beta Only (live streaming)" \
                     "4" "← Back to Main Menu" \
-                    3>&1 1>&2 2>&3)
+                    3>&1 1>&2 2>&3) || true
     
     clear
     case "$choice" in
@@ -190,7 +201,7 @@ version_menu() {
                     "1" "View Current Versions" \
                     "2" "Promote Beta to Production" \
                     "3" "← Back to Main Menu" \
-                    3>&1 1>&2 2>&3)
+                    3>&1 1>&2 2>&3) || true
     
     case "$choice" in
         1) run_with_output "versions" ;;
@@ -218,7 +229,7 @@ config_menu() {
                     "2" "Validate Configuration" \
                     "3" "Configure Tailscale Serve" \
                     "4" "← Back to Main Menu" \
-                    3>&1 1>&2 2>&3)
+                    3>&1 1>&2 2>&3) || true
     
     case "$choice" in
         1) run_with_output "config" ;;
@@ -239,7 +250,7 @@ destructive_menu() {
                     "2" "🔥 Nuke Production (Stack + Data)" \
                     "3" "🔥 Nuke Beta (Stack + Data)" \
                     "4" "← Back to Main Menu (Safe)" \
-                    3>&1 1>&2 2>&3)
+                    3>&1 1>&2 2>&3) || true
     
     case "$choice" in
         1)
@@ -294,7 +305,8 @@ run_with_output() {
 # Main menu
 main_menu() {
     while true; do
-        local choice
+        local choice exit_status
+        set +e
         choice=$(dialog --title "🤖 Jarvis Stack Manager" \
                         --colors \
                         --menu "$(get_health_summary)\n\nSelect an action:" \
@@ -311,8 +323,8 @@ main_menu() {
                         "10" "❓ Help" \
                         "0" "🚪 Exit" \
                         3>&1 1>&2 2>&3)
-        
-        local exit_status=$?
+        exit_status=$?
+        set -e
 
         # Handle ESC (1) or Cancel (255) - graceful exit
         if [ $exit_status -eq 1 ] || [ $exit_status -eq 255 ]; then

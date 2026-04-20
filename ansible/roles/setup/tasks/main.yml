@@ -33,9 +33,13 @@
         mode: '0644'
         force: no
 
+    - name: Determine Docker repository architecture
+      set_fact:
+        docker_repo_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf'}[ansible_architecture] | default(ansible_architecture) }}"
+
     - name: Add Docker repository
       apt_repository:
-        repo: "deb [arch={{ ansible_architecture | replace('x86_64','amd64') }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+        repo: "deb [arch={{ docker_repo_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
         state: present
         filename: docker
 
@@ -178,12 +182,16 @@
     path: "{{ item }}"
   register: dir_stats
   loop:
-    - "{{ production_dir | default('/var/home/arr4/Projects/jarvis/production') }}"
-    - "{{ beta_dir | default('/var/home/arr4/Projects/jarvis/beta') }}"
+    - "{{ production_dir | default(project_root + '/production') }}"
+    - "{{ beta_dir | default(project_root + '/beta') }}"
 
 - name: Verify directories exist
-  debug:
-    msg: "Directory {{ item.item }} {{ 'exists' if item.stat.exists else 'is MISSING' }}"
+  assert:
+    that:
+      - item.stat.exists
+      - item.stat.isdir
+    fail_msg: "Required directory {{ item.item }} is missing or is not a directory."
+    success_msg: "Required directory {{ item.item }} exists."
   loop: "{{ dir_stats.results }}"
 
 - name: Setup complete message

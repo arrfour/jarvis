@@ -161,7 +161,7 @@ JARVIS has been hardened with **12 critical remediation fixes** to improve relia
 
 #### 🔒 Security Enhancements
 - ✅ **Security Headers** — Added HTTP headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection) to prevent clickjacking and content injection attacks
-- ✅ **Pinned Dependencies** — Tailscale Docker image pinned to stable version `v1.72.0` (no surprise breaking changes)
+- ✅ **Tailscale Image** — Sidecars use `tailscale/tailscale:unstable` for VIP support; operators should expect upstream changes on upgrade
 - ✅ **Safe Configuration Updates** — Secure parsing of configuration files prevents injection vulnerabilities
 
 #### 🛡️ Stability & Resource Management

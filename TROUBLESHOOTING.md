@@ -52,7 +52,7 @@ tailscale serve-config production/tailscale-serve-config.json
 
 1. **Reusable/Ephemeral Auth Keys** - These auto-approve containers but don't auto-configure Serve
 2. **Tailscale Serve requires CLI configuration** - Cannot be set via environment variables alone
-3. **Network isolation** - The tailscale-sidecar container has `network_mode: host` to reach localhost services
+3. **Network isolation** - The tailscale-sidecar container shares the `internal-prod` bridge network and reaches nginx via the `nginx-prod` hostname
 
 ### Testing Connectivity
 
@@ -107,9 +107,12 @@ docker logs tailscale-sidecar
 ```
 Look for `[ts-entrypoint]` prefixed lines showing progress.
 
-**App health poll stalling** — the script polls `http://localhost:8080/health` (host network). Check that nginx is up and the app is healthy:
+**App health poll stalling** — the script polls `http://nginx-prod:80/health` (bridge network). Check that nginx is up and the app is healthy:
 ```bash
-# From the host:
+# From the sidecar container (bridge network):
+docker exec tailscale-sidecar wget -qO- http://nginx-prod:80/health
+
+# From the host (via mapped port):
 curl -fsS http://localhost:8080/health
 
 # Full healthcheck status:
@@ -118,7 +121,7 @@ docker inspect open-webui2 --format '{{json .State.Health}}' | python3 -m json.t
 
 If the health endpoint path differs, override in `production/.env`:
 ```bash
-APP_HEALTH_URL=http://localhost:8080/
+APP_HEALTH_URL=http://nginx-prod:80/
 ```
 
 **Tailscale not authenticating** — if logs show daemon timeout, check the auth key in `production/.env` is valid and not expired. Rotate at https://login.tailscale.com/admin/settings/keys.
@@ -131,10 +134,10 @@ The SIGTERM trap in the entrypoint script should withdraw the VIP automatically 
 
 ```bash
 # Manually withdraw via the running container (if still up):
-docker exec tailscale-sidecar tailscale serve --service=svc:jarvis --remove https://localhost:443
+docker exec tailscale-sidecar tailscale serve --service=svc:jarvis --remove http://nginx-prod:80
 
-# Or directly on the host if native tailscale is installed:
-tailscale serve --service=svc:jarvis --remove https://localhost:443
+# In http (dual-port) mode, also remove the TCP/443 backend:
+docker exec tailscale-sidecar tailscale serve --service=svc:jarvis --remove tcp://nginx-prod:80
 
 # Confirm it's cleared:
 docker exec tailscale-sidecar tailscale serve status
@@ -145,16 +148,16 @@ docker exec tailscale-sidecar tailscale serve status
 - Confirm `open-webui2` passed its healthcheck: `docker inspect open-webui2 --format '{{json .State.Health}}'`
 - Confirm Nginx is running: `docker ps | grep nginx-proxy`
 - Check Nginx is reachable from the host: `curl -fsS http://localhost:8080/health`
-- Confirm VIP backend: `docker exec tailscale-sidecar tailscale serve status` — should show `svc:jarvis → https://localhost:443`
+- Confirm VIP backend: `docker exec tailscale-sidecar tailscale serve status` — should show `svc:jarvis → http://nginx-prod:80` (or TCP in dual-port mode)
 
 ### Overriding VIP defaults
 
 All three registration parameters are configurable via `production/.env` without touching the compose file:
 
 ```bash
-APP_HEALTH_URL=http://localhost:8080/health   # default
-VIP_SERVICE=svc:jarvis                        # default
-VIP_BACKEND=https://localhost:443             # default
+APP_HEALTH_URL=http://nginx-prod:80/health   # default (bridge network)
+VIP_SERVICE=svc:jarvis                       # default
+VIP_BACKEND=http://nginx-prod:80             # default (bridge network)
 ```
 
 ### Known limitation (v1)

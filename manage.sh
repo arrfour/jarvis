@@ -77,6 +77,7 @@ function wait_for_tailscale() {
         sleep 1
     done
     echo "⚠️  Timed out waiting for Tailscale in $container"
+    return 1
 }
 
 function nuke_stack() {
@@ -123,8 +124,14 @@ function detect_hardware() {
 }
 
 function run_compose() {
-    # echo "DEBUG: Running docker-compose $COMPOSE_FILES $@"
-    docker-compose $COMPOSE_FILES "$@"
+    if docker compose version &>/dev/null 2>&1; then
+        docker compose $COMPOSE_FILES "$@"
+    elif command -v docker-compose &>/dev/null; then
+        docker-compose $COMPOSE_FILES "$@"
+    else
+        echo "❌ Docker Compose is not installed"
+        exit 1
+    fi
 }
 
 # Helper: Configure Tailscale Serve safely (avoiding redundant calls/throttling)
@@ -372,8 +379,8 @@ EOF
     echo "📊 Version Comparison:"
     echo ""
     # Extract image tags from docker-compose.yaml using service names (robust awk-based parsing)
-    PROD_IMAGE=$(awk '/^  open-webui2:/{flag=1} flag && /image:/{gsub(/.*image:\s+/, ""); gsub(/\s+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
-    BETA_IMAGE=$(awk '/^  open-webui-beta:/{flag=1} flag && /image:/{gsub(/.*image:\s+/, ""); gsub(/\s+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
+    PROD_IMAGE=$(awk '/^  open-webui2:/{flag=1} flag && /image:/{gsub(/.*image:[[:space:]]+/, ""); gsub(/[[:space:]]+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
+    BETA_IMAGE=$(awk '/^  open-webui-beta:/{flag=1} flag && /image:/{gsub(/.*image:[[:space:]]+/, ""); gsub(/[[:space:]]+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
     
     # Get running container images
     PROD_RUNNING=$(docker inspect open-webui2 --format='{{.Config.Image}}' 2>/dev/null || echo "Not running")
@@ -467,7 +474,7 @@ EOF
     echo ""
     
     # Get current production image (robust awk-based parsing)
-    PROD_IMAGE=$(awk '/^  open-webui2:/{flag=1} flag && /image:/{gsub(/.*image:\s+/, ""); gsub(/\s+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
+    PROD_IMAGE=$(awk '/^  open-webui2:/{flag=1} flag && /image:/{gsub(/.*image:[[:space:]]+/, ""); gsub(/[[:space:]]+#.*/, ""); print; exit}' "$SCRIPT_DIR/docker-compose.yaml")
     echo "  Current Production Image: $PROD_IMAGE"
     echo ""
     
@@ -479,10 +486,14 @@ EOF
     echo "⚠️  This will update production to use: $BETA_RUNNING"
     read -p "Type 'yes' to confirm: " confirm
     if [ "$confirm" = "yes" ]; then
-      # Update docker-compose.yaml (using awk to safely replace with special chars)
-      awk -v prod="$PROD_IMAGE" -v beta="$BETA_RUNNING" \
-        '{gsub("image: " prod, "image: " beta); print}' \
-        "$SCRIPT_DIR/docker-compose.yaml" > "$SCRIPT_DIR/docker-compose.yaml.tmp" && \
+      # Update docker-compose.yaml — scope replacement to open-webui2 service block only
+      # to avoid corrupt matches when image strings contain regex metacharacters
+      awk -v beta="$BETA_RUNNING" '
+        /^  open-webui2:$/ { in_service=1; print; next }
+        in_service && /^  [^[:space:]].*:/ { in_service=0 }
+        in_service && /^    image:[[:space:]]*/ { print "    image: " beta; next }
+        { print }
+      ' "$SCRIPT_DIR/docker-compose.yaml" > "$SCRIPT_DIR/docker-compose.yaml.tmp" && \
         mv "$SCRIPT_DIR/docker-compose.yaml.tmp" "$SCRIPT_DIR/docker-compose.yaml"
       echo "✅ Updated docker-compose.yaml"
       echo ""

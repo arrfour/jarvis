@@ -11,14 +11,14 @@
 #   5. Trap SIGTERM to withdraw the VIP cleanly on `docker compose down`
 #
 # Why here instead of a separate sidecar: tailscale-sidecar already owns the
-# tailscale binary and daemon, and uses network_mode: host — so it can reach
-# localhost:8080 (nginx) without any host-native Tailscale requirement.
+# tailscale binary and daemon, and reaches the app over the shared Compose network
+# (e.g. nginx-prod on internal-prod) — not via network_mode: host or localhost.
 
 set -e
 
-APP_HEALTH_URL="${APP_HEALTH_URL:-http://127.0.0.1:8080/health}"
+APP_HEALTH_URL="${APP_HEALTH_URL:-http://nginx-prod:80/health}"
 VIP_SERVICE="${VIP_SERVICE:-svc:jarvis}"
-VIP_BACKEND="${VIP_BACKEND:-https://localhost:443}"
+VIP_BACKEND="${VIP_BACKEND:-http://nginx-prod:80}"
 TS_READY_TIMEOUT="${TS_READY_TIMEOUT:-60}"
 
 # Detect socket path (tailscale/tailscale image may use /tmp if /var/run is restricted)
@@ -57,7 +57,7 @@ fi
 echo "[ts-entrypoint] Tailscale daemon ready (socket: ${TS_SOCKET})."
 
 # ── 3. Poll app health before registering VIP ────────────────────────────────
-# tailscale-sidecar is network_mode: host, so localhost:8080 = nginx on the host.
+# APP_HEALTH_URL defaults to http://nginx-prod:80/health (bridge network); override in .env if needed.
 echo "[ts-entrypoint] Waiting for app health at ${APP_HEALTH_URL} ..."
 until wget -qO- "$APP_HEALTH_URL" >/dev/null 2>&1; do
   sleep 5
@@ -74,8 +74,13 @@ echo "[ts-entrypoint] Registering ${VIP_SERVICE} (${VIP_MODE}) → ${VIP_BACKEND
 if [ "$VIP_MODE" = "http" ]; then
     # Dual-port registration (to satisfy Tailscale port 443 requirement while bypassing ACME rate limit)
     echo "[ts-entrypoint] Registering Port 80 (HTTP) ..."
-    tailscale_cli serve --bg --service="$VIP_SERVICE" --http=80 "$VIP_BACKEND" || true
-    
+    if tailscale_cli serve --bg --service="$VIP_SERVICE" --http=80 "$VIP_BACKEND"; then
+        echo "[ts-entrypoint] Port 80 (HTTP) registered successfully."
+    else
+        echo "[ts-entrypoint] Failed to register Port 80 (HTTP)."
+        exit 1
+    fi
+
     echo "[ts-entrypoint] Registering Port 443 (TCP Pass-through) ..."
     if tailscale_cli serve --bg --service="$VIP_SERVICE" --tcp=443 "tcp://${VIP_BACKEND#*://}"; then
         echo "[ts-entrypoint] VIP (Dual-Port HTTP/TCP) registered successfully. Monitoring for shutdown..."
@@ -96,6 +101,7 @@ fi
 # ── 5. Clean withdrawal on SIGTERM / SIGINT ──────────────────────────────────
 trap 'echo "[ts-entrypoint] Withdrawing ${VIP_SERVICE} backend..."; \
       tailscale_cli serve --service="$VIP_SERVICE" --remove "$VIP_BACKEND" 2>/dev/null || true; \
+      [ "$VIP_MODE" = "http" ] && tailscale_cli serve --service="$VIP_SERVICE" --remove "tcp://${VIP_BACKEND#*://}" 2>/dev/null || true; \
       kill "$BOOT_PID" 2>/dev/null; \
       wait "$BOOT_PID" 2>/dev/null; \
       exit 0' TERM INT

@@ -7,7 +7,7 @@ services:
   open-webui2:
     image: ghcr.io/open-webui/open-webui:v0.7.2
     # Clear port mapping - Ollama is now a separate container
-    ports: !reset []
+    ports: []
     environment:
       OLLAMA_BASE_URL: "http://ollama-prod:11434"
       USE_OLLAMA_DOCKER: "false"
@@ -40,7 +40,7 @@ services:
   open-webui-beta:
     image: ghcr.io/open-webui/open-webui:main
     # Clear port mapping - Ollama is now a separate container
-    ports: !reset []
+    ports: []
     environment:
       OLLAMA_BASE_URL: "http://ollama-beta:11434"
       USE_OLLAMA_DOCKER: "false"

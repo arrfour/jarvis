@@ -9,7 +9,7 @@ A dual-stack (production + beta) containerized deployment of **Open WebUI** with
 - 🤖 **Open WebUI** - Modern web interface for LLM chat and interactions
 - 🧠 **Ollama Backend** - Local LLM runtime with persistent models
 - 🔐 **Tailscale Integration** - End-to-end encrypted private network (no port forwarding needed)
-- ✅ **Valid HTTPS Certificates** - Automatic certs via Tailscale Serve (zero warnings)
+- ✅ **Valid HTTPS Certificates** - Automatic certs via Tailscale Serve (zero warnings; currently using HTTP mode while ACME rate limit recovers — see TROUBLESHOOTING.md)
 - 🔄 **Dual-Stack Architecture** - Production and beta environments running independently
 - 🎨 **Visual Differentiation** - Beta marked with red branding for quick identification
 - 📦 **Docker Compose** - Reproducible, version-controlled infrastructure
@@ -23,7 +23,7 @@ A dual-stack (production + beta) containerized deployment of **Open WebUI** with
 
 ### 🔒 Security Enhancements
 - **Security Headers** - HTTP headers added (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection) to prevent clickjacking and injection attacks
-- **Pinned Dependencies** - Tailscale Docker image pinned to stable version `v1.72.0` (eliminates surprise breaking changes)
+- **Tailscale Image** - Sidecars use `tailscale/tailscale:unstable` to access the `--service` VIP flag not yet in stable releases; operators should expect upstream changes on upgrade
 - **Safe Configuration Parsing** - Robust YAML parsing prevents injection vulnerabilities in image version detection
 
 ### 🛡️ Stability & Resource Management

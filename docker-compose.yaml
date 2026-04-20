@@ -97,7 +97,7 @@ services:
   # ============================================
   # BETA STACK
   # ============================================
-  # Beta - ROLLING tag to always get latest features for testing
+  # Beta - PINNED to same version as production for consistent validation
   open-webui-beta:
     image: ghcr.io/open-webui/open-webui:v0.8.12-ollama
     container_name: open-webui-beta
@@ -108,7 +108,7 @@ services:
       - beta
       - all
     environment:
-      BACKEND_URL: http://localhost:8081/api
+      BACKEND_URL: http://localhost:8080/api
       OLLAMA_BASE_URL: http://localhost:11434
     volumes:
       - ollama-beta:/root/.ollama

@@ -1,6 +1,9 @@
 ---
 # Defaults for setup role
 
+# Root path of the jarvis project on the target host — override in inventory
+project_root: "{{ ansible_env.HOME }}/jarvis"
+
 # Whether to install basic prerequisites (dialog, etc.)
 install_prerequisites: true
 

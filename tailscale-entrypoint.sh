@@ -1,24 +1,23 @@
 #!/bin/sh
 # tailscale-entrypoint.sh
 #
-# Custom entrypoint for the tailscale-sidecar container.
+# Custom entrypoint for the tailscale container.
 #
 # Responsibilities:
 #   1. Start the Tailscale daemon (containerboot)
 #   2. Wait for tailscaled to authenticate on the tailnet
 #   3. Poll the app's health endpoint until it's ready
 #   4. Register this host as a svc:jarvis VIP backend via `tailscale serve`
-#   5. Trap SIGTERM to withdraw the VIP cleanly on `docker compose down`
-#
-# Why here instead of a separate sidecar: tailscale-sidecar already owns the
-# tailscale binary and daemon, and reaches the app over the shared Compose network
-# (e.g. nginx-prod on internal-prod) — not via network_mode: host or localhost.
+#   5. Expose the Ollama API on port 11434 of this tailnet node
+#   6. Trap SIGTERM to withdraw both serves cleanly on `docker compose down`
 
 set -e
 
-APP_HEALTH_URL="${APP_HEALTH_URL:-http://nginx-prod:80/health}"
+APP_HEALTH_URL="${APP_HEALTH_URL:-http://nginx:80/health}"
 VIP_SERVICE="${VIP_SERVICE:-svc:jarvis}"
-VIP_BACKEND="${VIP_BACKEND:-http://nginx-prod:80}"
+VIP_BACKEND="${VIP_BACKEND:-http://nginx:80}"
+VIP_MODE="${VIP_MODE:-http}"
+OLLAMA_SERVE_URL="${OLLAMA_SERVE_URL:-http://ollama:11434}"
 TS_READY_TIMEOUT="${TS_READY_TIMEOUT:-60}"
 
 # Detect socket path (tailscale/tailscale image may use /tmp if /var/run is restricted)
@@ -40,40 +39,31 @@ BOOT_PID=$!
 echo "[ts-entrypoint] Waiting for tailscaled (up to ${TS_READY_TIMEOUT}s)..."
 i=0
 while [ "$i" -lt "$TS_READY_TIMEOUT" ]; do
-  # Fallback check for socket appearance
   if [ ! -S "$TS_SOCKET" ] && [ -S "/tmp/tailscaled.sock" ]; then TS_SOCKET="/tmp/tailscaled.sock"; fi
-  
   tailscale_cli status >/dev/null 2>&1 && break
   sleep 1
   i=$((i + 1))
 done
 
 if ! tailscale_cli status >/dev/null 2>&1; then
-  echo "[ts-entrypoint] ERROR: Tailscale not ready after ${TS_READY_TIMEOUT}s — skipping VIP registration."
+  echo "[ts-entrypoint] ERROR: Tailscale not ready after ${TS_READY_TIMEOUT}s — aborting."
   wait "$BOOT_PID"
   exit 1
 fi
 
 echo "[ts-entrypoint] Tailscale daemon ready (socket: ${TS_SOCKET})."
 
-# ── 3. Poll app health before registering VIP ────────────────────────────────
-# APP_HEALTH_URL defaults to http://nginx-prod:80/health (bridge network); override in .env if needed.
+# ── 3. Poll app health before registering ────────────────────────────────────
 echo "[ts-entrypoint] Waiting for app health at ${APP_HEALTH_URL} ..."
 until wget -qO- "$APP_HEALTH_URL" >/dev/null 2>&1; do
   sleep 5
 done
-
 echo "[ts-entrypoint] App healthy."
 
-# ── 4. Register VIP backend ──────────────────────────────────────────────────
-# Mode detection (https default)
-VIP_MODE="${VIP_MODE:-https}"
-
+# ── 4. Register VIP backend for Open WebUI ───────────────────────────────────
 echo "[ts-entrypoint] Registering ${VIP_SERVICE} (${VIP_MODE}) → ${VIP_BACKEND} ..."
 
 if [ "$VIP_MODE" = "http" ]; then
-    # Dual-port registration (to satisfy Tailscale port 443 requirement while bypassing ACME rate limit)
-    echo "[ts-entrypoint] Registering Port 80 (HTTP) ..."
     if tailscale_cli serve --bg --service="$VIP_SERVICE" --http=80 "$VIP_BACKEND"; then
         echo "[ts-entrypoint] Port 80 (HTTP) registered successfully."
     else
@@ -81,27 +71,36 @@ if [ "$VIP_MODE" = "http" ]; then
         exit 1
     fi
 
-    echo "[ts-entrypoint] Registering Port 443 (TCP Pass-through) ..."
     if tailscale_cli serve --bg --service="$VIP_SERVICE" --tcp=443 "tcp://${VIP_BACKEND#*://}"; then
-        echo "[ts-entrypoint] VIP (Dual-Port HTTP/TCP) registered successfully. Monitoring for shutdown..."
+        echo "[ts-entrypoint] VIP (dual-port HTTP/TCP) registered successfully."
     else
-        echo "[ts-entrypoint] Failed to register VIP (Dual-Port)."
+        echo "[ts-entrypoint] Failed to register Port 443 (TCP)."
         exit 1
     fi
 else
-    # Register as HTTPS on port 443 (default)
     if tailscale_cli serve --bg --service="$VIP_SERVICE" "$VIP_BACKEND"; then
-        echo "[ts-entrypoint] VIP (HTTPS) registered successfully. Monitoring for shutdown..."
+        echo "[ts-entrypoint] VIP (HTTPS) registered successfully."
     else
         echo "[ts-entrypoint] Failed to register VIP (HTTPS)."
         exit 1
     fi
 fi
 
-# ── 5. Clean withdrawal on SIGTERM / SIGINT ──────────────────────────────────
-trap 'echo "[ts-entrypoint] Withdrawing ${VIP_SERVICE} backend..."; \
+# ── 5. Expose Ollama API on port 11434 of this tailnet node ──────────────────
+echo "[ts-entrypoint] Registering Ollama API serve on port 11434 → ${OLLAMA_SERVE_URL} ..."
+if tailscale_cli serve --bg --http=11434 "$OLLAMA_SERVE_URL"; then
+    echo "[ts-entrypoint] Ollama API accessible at http://jarvis:11434 on Tailnet."
+else
+    echo "[ts-entrypoint] WARNING: Failed to register Ollama API serve — continuing anyway."
+fi
+
+echo "[ts-entrypoint] All registrations complete. Monitoring for shutdown..."
+
+# ── 6. Clean withdrawal on SIGTERM / SIGINT ──────────────────────────────────
+trap 'echo "[ts-entrypoint] Withdrawing serves..."; \
       tailscale_cli serve --service="$VIP_SERVICE" --remove "$VIP_BACKEND" 2>/dev/null || true; \
       [ "$VIP_MODE" = "http" ] && tailscale_cli serve --service="$VIP_SERVICE" --remove "tcp://${VIP_BACKEND#*://}" 2>/dev/null || true; \
+      tailscale_cli serve --http=11434 off 2>/dev/null || true; \
       kill "$BOOT_PID" 2>/dev/null; \
       wait "$BOOT_PID" 2>/dev/null; \
       exit 0' TERM INT

@@ -1,12 +1,12 @@
-services:
-  open-webui2:
-    gpus:
-      - driver: nvidia
-        count: all
-        capabilities: ["gpu"]
+# NVIDIA GPU Override — targets the ollama service only
+# Applied automatically by manage.sh when nvidia-smi or /dev/nvidia0 is detected.
 
-  open-webui-beta:
-    gpus:
-      - driver: nvidia
-        count: all
-        capabilities: ["gpu"]
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
